@@ -19,7 +19,7 @@ export default function HomePage() {
 
         {/* 소개글 */}
         <p className="mt-4 text-sm leading-relaxed text-slate-600 break-keep">
-          안녕하세요! 바이브 코딩을 배우고 있는 대학생입니다. 전공은 공간정보시스템(GIS)입니다.
+          공간 데이터와 웹 기술을 연결하는 개발자입니다. 공간정보시스템(GIS)을 바탕으로 사용자에게 직관적이고 가치 있는 지도·웹 서비스를 만듭니다.
         </p>
       </main>
     </div>
