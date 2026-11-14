@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+:root {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+body {
+  font-family: var(--font-sans);
+  letter-spacing: -0.015em;
+  background-color: #F4F5FB;
+  color: #1E2530;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .shadow-gs-card {
+    box-shadow: 0 4px 16px 0 rgba(30, 37, 48, 0.04);
+  }
+  .shadow-gs-float {
+    box-shadow: 0 8px 24px 0 rgba(0, 212, 234, 0.25);
+  }
+}
