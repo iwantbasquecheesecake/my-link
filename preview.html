@@ -655,13 +655,71 @@
       const category = document.getElementById("newCategory").value.trim() || "기타";
       const badge = document.getElementById("newBadge").value.trim();
 
-      if (!title || !url) {
-        alert("제목과 URL은 필수 입력 항목입니다.");
+      if (!title || title.length < 2) {
+        alert("제목은 최소 2자 이상 입력해주세요.");
+        document.getElementById("newTitle").focus();
         return;
       }
 
-      if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("mailto:")) {
-        url = "https://" + url;
+      if (title.length > 40) {
+        alert("제목은 최대 40자까지 입력 가능합니다.");
+        document.getElementById("newTitle").focus();
+        return;
+      }
+
+      if (!url) {
+        alert("목적지 URL을 입력해주세요.");
+        document.getElementById("newUrl").focus();
+        return;
+      }
+
+      if (/\s/.test(url)) {
+        alert("URL에는 띄어쓰기(공백)를 포함할 수 없습니다.");
+        document.getElementById("newUrl").focus();
+        return;
+      }
+
+      if (url.startsWith("mailto:")) {
+        const email = url.replace("mailto:", "").trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          alert("올바른 이메일 주소 형식(예: mailto:user@example.com)을 입력해주세요.");
+          document.getElementById("newUrl").focus();
+          return;
+        }
+      } else {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+          url = "https://" + url;
+        }
+        try {
+          const parsed = new URL(url);
+          if (parsed.hostname !== "localhost" && !parsed.hostname.includes(".")) {
+            alert("올바른 도메인 주소(예: https://example.com)를 입력해주세요.");
+            document.getElementById("newUrl").focus();
+            return;
+          }
+        } catch {
+          alert("유효한 웹 URL 주소 형식을 입력해주세요.");
+          document.getElementById("newUrl").focus();
+          return;
+        }
+      }
+
+      if (subtitle.length > 80) {
+        alert("상세 설명은 최대 80자까지 입력 가능합니다.");
+        document.getElementById("newSubtitle").focus();
+        return;
+      }
+
+      if (category.length > 15) {
+        alert("카테고리는 최대 15자까지 입력 가능합니다.");
+        document.getElementById("newCategory").focus();
+        return;
+      }
+
+      if (badge.length > 10) {
+        alert("뱃지 문구는 최대 10자까지 입력 가능합니다.");
+        document.getElementById("newBadge").focus();
+        return;
       }
 
       const newLinkItem = {
