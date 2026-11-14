@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MyLink (마이링크)",
-  description: "나만의 링크 모음 페이지 - 마이링크",
+  title: "김나린 | 마이링크 (MyLink)",
+  description: "공간 데이터 시각화와 모던 웹 프론트엔드 개발자 김나린의 링크트리 포트폴리오",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased bg-slate-50 text-slate-900">
+      <body className="antialiased bg-background text-foreground min-h-screen">
         {children}
       </body>
     </html>

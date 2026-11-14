@@ -6,6 +6,16 @@ last_updated: "2026-09-02"
 created_at: "2026-08-30"
 lang: ko
 logo: https://getdesign.kr/logos/gs-retail.png
+custom_theme_override:
+  palette_name: "포레스트 에코 팔레트 (사용자 지정 최우선 테마)"
+  active: true
+  tokens:
+    primary-dark: "#1E3024"       # --foreground, --card-foreground
+    signature-cyan: "#4D6E56"     # --primary, --ring
+    card: "#F4FBF4"               # --card, --primary-foreground
+    background: "#D6E1D8"         # --background, --muted
+    border: "#516053"             # --border, --input
+    muted-foreground: "#00431C"   # --muted-foreground
 colors:
   ## Core — 정확값 (1차 소스 + 독립 2차 출처 교차확인)
   primary-dark: oklch(0.263 0.023 259)   # #1E2530 — primary 버튼 배경이자 섹션 헤더 텍스트색. Dart 코드와 웹뷰 CSS 두 출처에서 확인
@@ -46,6 +56,18 @@ fonts:
 ---
 
 # 우리동네GS — design.md
+
+> [!IMPORTANT]
+> **마이링크(MyLink) 커스텀 테마 오버라이드 규정:**
+> 본 프로젝트(마이링크)에서는 아래 우리동네GS 레퍼런스의 기하 구조(16~20px 카드 곡률, 40px 아이콘 히트 에어리어, 16px 좌우 여백 등)를 채택하되, **색상 팔레트는 사용자가 지정한 [포레스트 에코 팔레트]를 최우선으로 영구 적용**합니다:
+> - `primary-dark`: `#1E3024` (헤더 텍스트 및 기본 폰트)
+> - `--primary`, `signature-cyan`: `#4D6E56` (세이지 그린 액션 및 활성 포인트)
+> - `--primary-foreground`, `--card`: `#F4FBF4` (라이트 민트 아이보리 카드 바탕)
+> - `--background`, `--muted`: `#D6E1D8` (세이지 그레이 배경)
+> - `--border`, `--input`: `#516053` (올리브 그레이 경계선)
+> - `--muted-foreground`: `#00431C` (딥 에메랄드 강조 서브텍스트)
+> - **프로필 아바타 내부 링 제거 및 미니멀화**: 시각적 답답함과 이질감을 유발하던 내부 링(Ring) 및 이중 테두리 요소를 완전히 제거하고, 단일 라이트 민트(`#F4FBF4`) 바탕 위에 캐릭터와 딥 포레스트(`primary-dark: #1E3024`) 선만 깔끔하게 배치하여 미니멀 플랫 룩 유지
+> - **외부 소셜/서비스 링크 뱃지**: 원색(예: 링크드인 블루 `#0A66C2`)을 배제하고 포레스트 에코 팔레트(세이지 그린 `#4D6E56` / 글자 `#F4FBF4`)로 톤앤매너 완벽 일치
 
 > 이 항목은 **Flutter 네이티브 앱**이 대상이라 라이브 CSS 를 읽어 토큰을 걷는 기법이 통하지 않는다. 그래서 값의 근거 강도가 고르지 않고, 이 문서는 그 편차를 지우는 대신 **네 등급으로 갈라 표기**한다 — (A) 정확값, (B) 근사 관찰, (C) 앱 내부 서비스 브랜드의 발행값, (D) 상표 규정. 등급을 무시하고 한 팔레트로 뭉뚱그리는 순간 이 문서는 근거보다 많은 것을 주장하게 된다.
 

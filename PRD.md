@@ -21,8 +21,9 @@
 | :--- | :--- | :--- |
 | **Framework** | Next.js 15 (App Router), React 19 | SSR/SSG 지원 및 최신 React 컴포넌트 아키텍처 활용 |
 | **Language** | TypeScript 5.7+ | 엄격한 타입 정의를 통한 안정적 데이터 구조 관리 |
+| **UI Component System** | **shadcn/ui** (Base UI 프리셋) | 일관된 디자인 시스템 구축, 높은 접근성(A11y), 재사용 가능한 아토믹 컴포넌트(`Button`, `Card`, `Badge`, `Avatar`, `Tabs`, `Dialog`, `Input`) 아키텍처 |
+| **Styling** | **Tailwind CSS v4** (CSS-first, `@theme inline`), Lucide React | 별도 config 및 CSS Module(`*.module.css`) 사용을 배제하고 Tailwind CSS v4 단일 체계로 스타일 통일. OKLCH 기반 토큰 관리 및 모던 아이콘 세트 |
 | **State Management** | **Zustand** (`persist` 미들웨어) | 초경량(1KB), `localStorage` 자동 영속화, 관리자 분할 뷰 실시간 렌더링 최적화, SSR 하이드레이션 제어 |
-| **Styling** | Tailwind CSS v4, Lucide React | 유틸리티 기반 고속 스타일링 및 풍부하고 일관된 모던 아이콘 세트 |
 | **Drag & Drop** | `@hello-pangea/dnd` 또는 `@dnd-kit` | 터치/마우스 환경에서 안정적인 순서 변경 UX 제공 |
 | **Data Storage** | Browser `localStorage` | 외부 서버/DB 종속성 없이 브라우저 내에서 즉각적이고 영속적인 데이터 보관 |
 | **Data Migration** | JSON File Export / Import | 브라우저 변경이나 기기 이동 시 데이터 유실 방지 및 백업 지원 |
@@ -278,6 +279,55 @@ flowchart TD
 
 ---
 
+### 4.3 기본 디자인 시스템 규격 (Design System — shadcn/ui & design.md 연계)
+
+마이링크의 UI 및 디자인 시스템은 **[shadcn/ui](https://ui.shadcn.com/)**를 전면 도입하여 일관성, 높은 웹 접근성(A11y), 모듈형 확장성을 확보합니다. 프로젝트 저장소 내 [design.md](file:///c:/Users/narin/Desktop/바이브코딩/mylink-rin/design.md)의 디자인 시스템 토큰(우리동네GS 레퍼런스)을 Tailwind CSS v4 CSS 변수([src/app/globals.css](file:///c:/Users/narin/Desktop/바이브코딩/mylink-rin/src/app/globals.css))를 통해 shadcn/ui의 Semantic Token(`--primary`, `--background`, `--accent`, `--border`, `--radius` 등)에 완벽하게 바인딩하여 완성도 높은 시각 정체성을 구현합니다.
+
+> [!IMPORTANT]
+> **스타일링 및 컴포넌트 아키텍처 원칙 (Tailwind CSS 단일화 & shadcn/ui 재사용 컴포넌트화)**
+> 1. **CSS Module (`*.module.css`) 완전 배제**: 스타일 정의 파편화와 중복을 방지하기 위해 CSS 모듈 파일 사용을 전면 배제하며, 모든 스타일링은 **Tailwind CSS v4 유틸리티 클래스와 글로벌 CSS 토큰 체계로 100% 통일**합니다.
+> 2. **shadcn/ui 기반 컴포넌트 재사용**: 모든 도메인 UI 블록(프로필 헤더, 링크 카드, 카테고리 탭, 역량 요약, 인증 모달 등)은 `@/components/ui/` 디렉터리에 위치한 shadcn/ui 기본 컴포넌트(`Button`, `Card`, `Badge`, `Avatar`, `Tabs`, `Dialog`, `Input` 등)를 기반으로 조립 및 재사용하도록 표준화합니다.
+> 3. **색상 테마 오버라이드 (포레스트 에코 팔레트 최우선 적용)**: UI 구조, 배치, 터치 규격(40px), 여백(16px), 카드 모서리(20px)는 `design.md`의 구조적 사양을 준수하되, **색상 팔레트는 사용자가 정의한 [B. 코어 컬러 토큰 (포레스트 에코 팔레트)]를 최우선으로 영구 적용**합니다.
+
+#### A. shadcn/ui 컴포넌트 카탈로그 & 활용 설계
+| 컴포넌트 | 파일 경로 | 주요 활용처 및 역할 |
+| :--- | :--- | :--- |
+| **Button** | `@/components/ui/button` | 프로필 내 액션 버튼, 소셜 링크 버튼, 관리자 저장/추가/삭제 액션 |
+| **Card** | `@/components/ui/card` | 메인 링크 아이템 카드, 관리자 통계 요약 카드, 설정 패널 컨테이너 |
+| **Dialog / Modal** | `@/components/ui/dialog` | 링크 생성/수정 모달, JSON 백업/복원 팝업, 비밀번호 변경 다이얼로그 |
+| **Input / Textarea** | `@/components/ui/input` | 프로필 정보(이름, 소개글) 입력 폼, 링크 URL 및 타이틀 입력 |
+| **Tabs** | `@/components/ui/tabs` | 공개 페이지 카테고리 필터링 탭, 관리자 섹션 전환 탭(링크/테마/통계/프로필/설정) |
+| **Switch** | `@/components/ui/switch` | 링크 노출/비노출 즉시 토글, 다크/라이트 모드 스위치 |
+| **DropdownMenu** | `@/components/ui/dropdown-menu` | 링크 카드 우측 더보기 액션(수정, 복제, 최상단 이동, 삭제) |
+| **Avatar** | `@/components/ui/avatar` | 프로필 사진 렌더링, 이미지 로딩 실패 시 이니셜/기본 아이콘 폴백 |
+| **Badge** | `@/components/ui/badge` | 상태 뱃지("학부 3학년 재학 중"), 링크 카테고리 태그, New/Hot 강조 라벨 |
+| **Tooltip / Toast** | `@/components/ui/tooltip` | 링크 URL 복사 완료 토스트 알림, 관리자 퀵 액션 안내 툴팁 |
+
+#### B. 코어 컬러 토큰 (Core Colors — 포레스트 에코 팔레트)
+| 토큰명 | 색상 코드 (HEX) | shadcn/ui 시맨틱 매핑 | 용도 및 컴포넌트 적용 |
+| :--- | :--- | :--- | :--- |
+| `primary-dark` | `#1E3024` | `--foreground`, `--card-foreground` | 딥 포레스트 그린. 헤더 타이틀, 본문 기본 텍스트, 카드/팝오버 전경색 |
+| `signature-cyan` | `#4D6E56` | `--primary`, `--ring` | 세이지 그린. 주요 액션(Primary) 버튼 배경, 포커스/호버 링, 활성 인디케이터 |
+| `card / white` | `#F4FBF4` | `--card`, `--primary-foreground`, `--popover` | 라이트 민트 아이보리. 링크 카드 배경, Primary 버튼 반전 텍스트색 |
+| `background / muted` | `#D6E1D8` | `--background`, `--muted`, `--secondary`, `--accent` | 부드러운 세이지 그레이. 앱 전체 기본 배경 및 보조/뮤트 영역 배경 |
+| `border / input` | `#516053` | `--border`, `--input` | 차분한 올리브 그레이. 카드 테두리(Border), 폼 입력창 테두리, 구분선 |
+| `muted-foreground` | `#00431C` | `--muted-foreground` | 딥 에메랄드. 설명글(Subtitle), 메타 정보 서브 텍스트, 라벨 강조 |
+
+#### C. 타이포그래피 (Typography)
+- **서체 패밀리**: `"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`
+- **섹션 헤더**: `18px (text-lg)` / `FontWeight: 700 (font-bold)`
+- **링크 카드 제목**: `16px (text-base)` / `FontWeight: 600 (font-semibold)`
+- **카드 설명글**: `13px~14px (text-sm)` / `FontWeight: 400 (font-normal)`
+- **강조 뱃지**: `11px~12px (text-xs)` / `FontWeight: 600 (font-semibold)`
+
+#### D. 여백 및 인터랙션 규격 (Spacing & Hit Area)
+- **수평 컨테이너 여백**: `16px (px-4)`
+- **아이콘 터치 영역 (Hit-area)**: 최소 `40px × 40px` (모바일 터치 최적화)
+- **기본 카드 모서리 둥글기**: `16px (rounded-2xl)`
+- **호버 애니메이션**: `transition-all duration-200 hover:-translate-y-0.5`
+
+---
+
 ## 5. 데이터 스키마 정의 (Data Schema)
 
 `localStorage` 키: `MYLINK_DATA_V1`
@@ -348,6 +398,194 @@ export interface AnalyticsSummary {
   lastUpdated: string;
 }
 ```
+
+---
+
+### 5.1 초기 시드 및 Mock API용 기본 더미 데이터 (Seed & Mock Data)
+
+서비스 최초 실행 시 `localStorage` 초기값 및 개발/테스트용 백엔드 Mock API에 사용할 표준 더미 데이터 세트입니다.
+
+#### 5.1.1 링크 목록 시드 데이터 (`links.json`)
+
+```json
+[
+  {
+    "id": "link-01",
+    "category": "코드 저장소",
+    "title": "GitHub 리포지토리",
+    "subtitle": "개인 프로젝트 소스코드 및 일일 잔디 커밋 아카이브입니다.",
+    "url": "https://github.com/iwantbasquecheesecake",
+    "iconName": "Github",
+    "badge": "실시간 커밋",
+    "badgeBgColor": "#4D6E56",
+    "badgeTextColor": "#F4FBF4",
+    "isVisible": true,
+    "order": 1,
+    "clickCount": 142,
+    "createdAt": "2026-03-01T09:00:00Z",
+    "updatedAt": "2026-11-14T18:30:00Z"
+  },
+  {
+    "id": "link-02",
+    "category": "지도 연구",
+    "title": "GIS & 웹 지도 연구소",
+    "subtitle": "공간 데이터를 시각화한 인터랙티브 WebGIS 프로젝트 모음입니다.",
+    "url": "https://gis-lab.example.com",
+    "iconName": "Layers",
+    "badge": "인터랙티브",
+    "badgeBgColor": "#1E2530",
+    "badgeTextColor": "#00D4EA",
+    "isVisible": true,
+    "order": 2,
+    "clickCount": 218,
+    "createdAt": "2026-03-15T11:20:00Z",
+    "updatedAt": "2026-11-15T01:10:00Z"
+  },
+  {
+    "id": "link-03",
+    "category": "포트폴리오",
+    "title": "서울시 상권 분석 대시보드",
+    "subtitle": "GeoJSON 및 유동인구 통계 데이터를 결합한 실시간 공간 분석 웹앱",
+    "url": "https://portfolio.example.com/seoul-commercial",
+    "iconName": "MapPin",
+    "badge": "대표 프로젝트",
+    "badgeBgColor": "#4D6E56",
+    "badgeTextColor": "#F4FBF4",
+    "isVisible": true,
+    "order": 3,
+    "clickCount": 185,
+    "createdAt": "2026-05-10T14:00:00Z",
+    "updatedAt": "2026-11-10T16:45:00Z"
+  },
+  {
+    "id": "link-04",
+    "category": "개발 일지",
+    "title": "기술 블로그 & 스터디 노트",
+    "subtitle": "공간정보 분석과 Next.js, 모던 웹 프론트엔드 스터디 개발 로그입니다.",
+    "url": "https://velog.io/@narin-kim",
+    "iconName": "BookOpen",
+    "badge": "스터디 노트",
+    "badgeBgColor": "#F4F5FB",
+    "badgeTextColor": "#516053",
+    "isVisible": true,
+    "order": 4,
+    "clickCount": 97,
+    "createdAt": "2026-04-02T10:15:00Z",
+    "updatedAt": "2026-11-12T09:20:00Z"
+  },
+  {
+    "id": "link-05",
+    "category": "포트폴리오",
+    "title": "학부 3학년 프로젝트 아카이브",
+    "subtitle": "공간정보 데이터베이스 및 알고리즘 텀 프로젝트 보고서와 데모",
+    "url": "https://notion.so/narin/term-projects",
+    "iconName": "FileText",
+    "badge": "학부 연구",
+    "badgeBgColor": "#E2E8F0",
+    "badgeTextColor": "#334155",
+    "isVisible": true,
+    "order": 5,
+    "clickCount": 63,
+    "createdAt": "2026-06-20T16:00:00Z",
+    "updatedAt": "2026-10-30T14:10:00Z"
+  },
+  {
+    "id": "link-06",
+    "category": "협업 문의",
+    "title": "이메일로 커피챗 제안하기",
+    "subtitle": "프로젝트 협업, 오픈소스 기여, 캐주얼 커피챗 제안을 언제든 환영합니다.",
+    "url": "mailto:narin.kim@example.com",
+    "iconName": "Mail",
+    "badge": "커피챗 환영",
+    "badgeBgColor": "#4D6E56",
+    "badgeTextColor": "#F4FBF4",
+    "isVisible": true,
+    "order": 6,
+    "clickCount": 42,
+    "createdAt": "2026-03-01T09:00:00Z",
+    "updatedAt": "2026-11-01T12:00:00Z"
+  },
+  {
+    "id": "link-07",
+    "category": "협업 문의",
+    "title": "LinkedIn 프로필",
+    "subtitle": "이력 및 학업 활동, 대외활동 네트워킹을 위한 링크드인입니다.",
+    "url": "https://linkedin.com/in/narin-kim",
+    "iconName": "Globe",
+    "badge": "Network",
+    "badgeBgColor": "#4D6E56",
+    "badgeTextColor": "#F4FBF4",
+    "isVisible": true,
+    "order": 7,
+    "clickCount": 54,
+    "createdAt": "2026-04-18T13:30:00Z",
+    "updatedAt": "2026-11-05T17:00:00Z"
+  },
+  {
+    "id": "link-08",
+    "category": "개발 일지",
+    "title": "리팩토링 중인 구버전 포트폴리오 (비공개 예시)",
+    "subtitle": "Next.js 15 마이그레이션 작업 중인 이전 버전 사이트입니다.",
+    "url": "https://v1.portfolio.example.com",
+    "iconName": "Code2",
+    "badge": "점검중",
+    "badgeBgColor": "#FEE2E2",
+    "badgeTextColor": "#991B1B",
+    "isVisible": false,
+    "order": 8,
+    "clickCount": 12,
+    "createdAt": "2026-01-10T08:00:00Z",
+    "updatedAt": "2026-11-13T20:00:00Z"
+  }
+]
+```
+
+#### 5.1.2 백엔드 Mock API 규격 (`GET /api/v1/links`)
+
+```json
+{
+  "status": "success",
+  "statusCode": 200,
+  "message": "링크 목록 조회가 완료되었습니다.",
+  "data": {
+    "totalCount": 8,
+    "visibleCount": 7,
+    "categories": [
+      "전체",
+      "코드 저장소",
+      "지도 연구",
+      "포트폴리오",
+      "개발 일지",
+      "협업 문의"
+    ],
+    "links": [
+      {
+        "id": "link-01",
+        "category": "코드 저장소",
+        "title": "GitHub 리포지토리",
+        "subtitle": "개인 프로젝트 소스코드 및 일일 잔디 커밋 아카이브입니다.",
+        "url": "https://github.com/iwantbasquecheesecake",
+        "iconName": "Github",
+        "badge": "실시간 커밋",
+        "badgeBgColor": "#00D4EA",
+        "badgeTextColor": "#1E2530",
+        "isVisible": true,
+        "order": 1,
+        "clickCount": 142,
+        "createdAt": "2026-03-01T09:00:00Z",
+        "updatedAt": "2026-11-14T18:30:00Z"
+      }
+      /* ... link-02 ~ link-08 상세 목록 (5.1.1과 동일) ... */
+    ]
+  },
+  "timestamp": "2026-11-15T03:15:00.000Z"
+}
+```
+
+#### 5.1.3 더미 데이터 활용 방안
+1. **Zustand 초기 시드 바인딩**: 사용자가 최초 접속하여 `localStorage`에 데이터가 없을 때, 위 더미 데이터를 기본값으로 즉시 주입하여 빈 화면 없이 풍성한 프리뷰를 제공.
+2. **어드민 리셋 기능(Reset to Default)**: 관리자 대시보드(`/admin`)의 [설정 & 백업] 탭에서 '초기 데이터로 리셋' 클릭 시 복원 기준으로 사용.
+3. **백엔드 Route Handler Mocking**: Next.js App Router 내 `src/app/api/links/route.ts` 구현 시 Mock 응답으로 즉시 바인딩하여 테스트 가능.
 
 ---
 

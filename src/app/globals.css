@@ -1,24 +1,104 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
   letter-spacing: -0.015em;
+  
+  /* 사용자 요청 커스텀 색상 토큰 */
+  --primary-dark: #1E3024;
+  --signature-cyan: #4D6E56;
+
+  /* shadcn/ui 시맨틱 토큰 매핑 */
+  --primary: #4D6E56;
+  --primary-foreground: #F4FBF4;
+  --card: #F4FBF4;
+  --card-foreground: #1E3024;
+  --popover: #F4FBF4;
+  --popover-foreground: #1E3024;
+  --background: #D6E1D8;
+  --foreground: #1E3024;
+  --muted: #D6E1D8;
+  --muted-foreground: #00431C;
+  --secondary: #D6E1D8;
+  --secondary-foreground: #1E3024;
+  --border: #516053;
+  --input: #516053;
+  --ring: #4D6E56;
+  --radius: 1.25rem; /* 20px */
 }
 
 body {
   font-family: var(--font-sans);
   letter-spacing: -0.015em;
-  background-color: #F4F5FB;
-  color: #1E2530;
+  background-color: var(--background);
+  color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
   .shadow-gs-card {
-    box-shadow: 0 4px 16px 0 rgba(30, 37, 48, 0.04);
+    box-shadow: 0 4px 16px 0 rgba(30, 48, 36, 0.08);
   }
   .shadow-gs-float {
-    box-shadow: 0 8px 24px 0 rgba(0, 212, 234, 0.25);
+    box-shadow: 0 8px 24px 0 rgba(77, 110, 86, 0.25);
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-primary-dark: var(--primary-dark);
+  --color-signature-cyan: var(--signature-cyan);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+}
+
+.dark {
+  --background: #142018;
+  --foreground: #F4FBF4;
+  --card: #1E3024;
+  --card-foreground: #F4FBF4;
+  --popover: #1E3024;
+  --popover-foreground: #F4FBF4;
+  --primary: #4D6E56;
+  --primary-foreground: #F4FBF4;
+  --secondary: #273A2D;
+  --secondary-foreground: #F4FBF4;
+  --muted: #273A2D;
+  --muted-foreground: #8FA594;
+  --accent: #273A2D;
+  --accent-foreground: #F4FBF4;
+  --border: #3A4E40;
+  --input: #3A4E40;
+  --ring: #4D6E56;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
