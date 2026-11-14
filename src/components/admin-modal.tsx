@@ -15,9 +15,10 @@ import { Button } from "@/components/ui/button";
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAddLink?: () => void;
 }
 
-export function AdminModal({ isOpen, onClose }: AdminModalProps) {
+export function AdminModal({ isOpen, onClose, onOpenAddLink }: AdminModalProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -36,8 +37,10 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
         setSuccess(false);
         setPassword("");
         onClose();
-        alert("관리자 인증이 확인되었습니다! (추후 관리자 페이지 연동)");
-      }, 1000);
+        if (onOpenAddLink) {
+          onOpenAddLink();
+        }
+      }, 700);
     } else {
       setError("비밀번호가 올바르지 않습니다.");
     }

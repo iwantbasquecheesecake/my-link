@@ -16,6 +16,11 @@ import {
   User,
   GraduationCap,
   Briefcase,
+  Terminal,
+  Compass,
+  Palette,
+  Coffee,
+  Bookmark,
   LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +40,27 @@ export function LineGithubIcon({ className = "w-5 h-5" }: { className?: string }
     </svg>
   );
 }
+
+export const ICON_OPTIONS: { name: string; label: string }[] = [
+  { name: "Github", label: "GitHub" },
+  { name: "Globe", label: "웹사이트" },
+  { name: "Code2", label: "코드" },
+  { name: "Terminal", label: "터미널" },
+  { name: "Layers", label: "GIS/레이어" },
+  { name: "MapPin", label: "지도/위치" },
+  { name: "BookOpen", label: "블로그" },
+  { name: "FileText", label: "문서" },
+  { name: "Briefcase", label: "포트폴리오" },
+  { name: "GraduationCap", label: "학업/연구" },
+  { name: "FolderGit2", label: "프로젝트" },
+  { name: "Palette", label: "디자인" },
+  { name: "Coffee", label: "커피챗" },
+  { name: "Mail", label: "이메일" },
+  { name: "Compass", label: "탐색" },
+  { name: "Sparkles", label: "추천" },
+  { name: "Bookmark", label: "북마크" },
+  { name: "ExternalLink", label: "링크" },
+];
 
 export function DynamicIcon({
   name,
@@ -65,6 +91,11 @@ export function DynamicIcon({
     user: User,
     graduationcap: GraduationCap,
     briefcase: Briefcase,
+    terminal: Terminal,
+    compass: Compass,
+    palette: Palette,
+    coffee: Coffee,
+    bookmark: Bookmark,
     externallink: ExternalLink,
   };
 

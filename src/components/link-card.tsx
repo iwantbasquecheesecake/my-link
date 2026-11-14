@@ -43,11 +43,11 @@ export function LinkCard({ link, onLinkClick }: LinkCardProps) {
               {link.badge && (
                 <Badge
                   style={{
-                    backgroundColor: link.badgeBgColor || "#4D6E56",
-                    color: link.badgeTextColor || "#F4FBF4",
+                    backgroundColor: "#4D6E56",
+                    color: "#F4FBF4",
                   }}
                   size="sm"
-                  className="border-transparent font-bold"
+                  className="border-transparent font-bold tracking-tight shadow-2xs"
                 >
                   {link.badge}
                 </Badge>

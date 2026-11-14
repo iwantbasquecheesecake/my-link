@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Share2, Check, Mail } from "lucide-react";
+import { Share2, Check, Mail, Plus } from "lucide-react";
 import { MyLinkData, LinkItem } from "@/types/mylink";
 import { INITIAL_DATA } from "@/lib/constants";
-import { getStoredData, incrementLinkClick } from "@/lib/storage";
+import { getStoredData, incrementLinkClick, addStoredLink } from "@/lib/storage";
 import { ProfileHeader } from "@/components/profile-header";
 import { CategoryTabs } from "@/components/category-tabs";
 import { LinkCard } from "@/components/link-card";
 import { SkillsCard } from "@/components/skills-card";
 import { Toast } from "@/components/toast";
 import { AdminModal } from "@/components/admin-modal";
+import { AddLinkDialog } from "@/components/add-link-dialog";
 import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
@@ -20,6 +21,7 @@ export default function HomePage() {
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+  const [isAddLinkOpen, setIsAddLinkOpen] = useState<boolean>(false);
 
   // 1. 클라이언트 마운트 시 localStorage에서 데이터 복원
   useEffect(() => {
@@ -74,6 +76,21 @@ export default function HomePage() {
     }));
   };
 
+  // 새 링크 추가 핸들러 (localStorage 영구 저장 및 로컬 React 상태 동기화)
+  const handleAddLink = (
+    newLinkInput: Omit<LinkItem, "id" | "clickCount" | "createdAt" | "updatedAt" | "order">
+  ) => {
+    const { updatedData, newLink } = addStoredLink(newLinkInput);
+    setData(updatedData);
+
+    // 추가된 링크 카테고리를 바로 볼 수 있도록 필요 시 카테고리 필터 전환
+    if (selectedCategory !== "전체" && selectedCategory !== newLink.category) {
+      setSelectedCategory("전체");
+    }
+
+    triggerToast(`"${newLink.title}" 링크가 성공적으로 추가되었습니다! 🎉`);
+  };
+
   // 활성(노출) 링크만 필터링 (isVisible === true)
   const visibleLinks = useMemo(() => {
     return data.links.filter((l) => l.isVisible);
@@ -122,6 +139,18 @@ export default function HomePage() {
 
           {/* 우측 퀵 액션 버튼들 (40x40 히트 에어리어) */}
           <div className="flex items-center gap-1.5">
+            {/* 새 링크 추가 퀵 버튼 */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsAddLinkOpen(true)}
+              className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] h-9 px-3 rounded-full text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all"
+              title="새 링크 추가"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">링크 추가</span>
+            </Button>
+
             <Button
               variant="outline"
               size="icon"
@@ -178,11 +207,29 @@ export default function HomePage() {
                 ({filteredLinks.length})
               </span>
             </h2>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddLinkOpen(true)}
+              className="h-8 px-2.5 text-xs font-bold text-[#4D6E56] border-[#4D6E56]/40 hover:bg-[#4D6E56] hover:text-[#F4FBF4] rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>새 링크 등록</span>
+            </Button>
           </div>
 
           {filteredLinks.length === 0 ? (
-            <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm">
-              등록된 링크가 없습니다.
+            <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm space-y-3">
+              <p>등록된 링크가 없습니다.</p>
+              <Button
+                type="button"
+                onClick={() => setIsAddLinkOpen(true)}
+                className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
+                첫 번째 링크 추가하기
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -211,10 +258,33 @@ export default function HomePage() {
         </footer>
       </main>
 
+      {/* 우측 하단 플로팅 링크 추가 버튼 (FAB) */}
+      <aside aria-label="새 링크 추가 플로팅 버튼" className="fixed bottom-6 right-6 z-40 sm:bottom-8 sm:right-8">
+        <button
+          type="button"
+          onClick={() => setIsAddLinkOpen(true)}
+          className="flex items-center gap-2 px-4 py-3 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-full shadow-gs-float transition-all duration-200 active:scale-95 cursor-pointer font-bold text-xs sm:text-sm hover:-translate-y-0.5 border border-[#F4FBF4]/25"
+          title="새 링크 추가하기"
+          aria-label="새 링크 추가하기"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>링크 추가</span>
+        </button>
+      </aside>
+
+      {/* 새 링크 추가 다이얼로그 */}
+      <AddLinkDialog
+        isOpen={isAddLinkOpen}
+        onClose={() => setIsAddLinkOpen(false)}
+        onAddLink={handleAddLink}
+        existingCategories={categories}
+      />
+
       {/* 시크릿 관리자 인증 모달 */}
       <AdminModal
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
+        onOpenAddLink={() => setIsAddLinkOpen(true)}
       />
 
       {/* 토스트 알림 메시지 */}

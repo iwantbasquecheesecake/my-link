@@ -59,6 +59,16 @@
 
       <!-- 우측 퀵 액션 (40x40 히트 에어리어) -->
       <div class="flex items-center gap-1.5">
+        <!-- 새 링크 추가 퀵 버튼 -->
+        <button
+          onclick="openAddLinkModal()"
+          class="h-9 px-3 rounded-full bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition"
+          title="새 링크 추가"
+        >
+          <svg class="w-3.5 h-3.5 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span class="hidden sm:inline">링크 추가</span>
+        </button>
+
         <button
           id="shareBtn"
           onclick="handleShare()"
@@ -186,6 +196,14 @@
           <span>전체</span>
           <span id="currentCategoryCount" class="text-xs font-normal text-[#516053]">(7)</span>
         </h2>
+
+        <button
+          onclick="openAddLinkModal()"
+          class="h-8 px-2.5 text-xs font-bold text-[#4D6E56] border border-[#4D6E56]/40 hover:bg-[#4D6E56] hover:text-[#F4FBF4] rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
+        >
+          <svg class="w-3.5 h-3.5 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>새 링크 등록</span>
+        </button>
       </div>
 
       <div id="linkCardsContainer" class="space-y-3">
@@ -230,6 +248,104 @@
       <p class="text-[11px] opacity-75">Designed for Developers, Creators & GIS Researchers</p>
     </footer>
   </main>
+
+  <!-- 우측 하단 플로팅 링크 추가 버튼 (FAB) -->
+  <aside class="fixed bottom-6 right-6 z-40 sm:bottom-8 sm:right-8">
+    <button
+      type="button"
+      onclick="openAddLinkModal()"
+      class="flex items-center gap-2 px-4 py-3 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-full shadow-lg transition-all duration-200 active:scale-95 cursor-pointer font-bold text-xs sm:text-sm hover:-translate-y-0.5 border border-white/20"
+      title="새 링크 추가하기"
+    >
+      <svg class="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>링크 추가</span>
+    </button>
+  </aside>
+
+  <!-- 새 링크 추가 다이얼로그 모달 -->
+  <div id="addLinkModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+    <div class="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[24px] border border-[#516053] bg-[#F4FBF4] p-6 text-[#1E3024] shadow-2xl relative">
+      <button onclick="closeAddLinkModal()" class="absolute right-4 top-4 rounded-xl p-1 text-[#516053] hover:text-[#1E3024] hover:bg-[#D6E1D8] cursor-pointer">
+        ✕
+      </button>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-2xl bg-[#4D6E56] text-[#F4FBF4] flex items-center justify-center font-bold shadow-xs">
+          <svg class="w-5 h-5 stroke-[2.2]" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-[#1E3024]">새 링크 추가</h2>
+          <p class="text-xs text-[#516053]">프로필에 노출될 새로운 링크를 등록합니다.</p>
+        </div>
+      </div>
+
+      <form onsubmit="handleAddLinkSubmit(event)" class="space-y-4 text-left">
+        <div>
+          <label class="text-xs font-bold text-[#1E3024] block mb-1">제목 <span class="text-red-500">*</span></label>
+          <input type="text" id="newTitle" required placeholder="예: GitHub 리포지토리, 개인 블로그" oninput="updateLivePreview()" class="w-full h-11 px-3.5 rounded-xl border border-[#516053] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4D6E56]" />
+        </div>
+
+        <div>
+          <label class="text-xs font-bold text-[#1E3024] block mb-1">목적지 URL <span class="text-red-500">*</span></label>
+          <input type="text" id="newUrl" required placeholder="https://..." oninput="updateLivePreview()" class="w-full h-11 px-3.5 rounded-xl border border-[#516053] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#4D6E56]" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-[#516053] block mb-1">상세 설명 (부제목)</label>
+          <input type="text" id="newSubtitle" placeholder="링크에 대한 간단한 설명을 입력하세요." oninput="updateLivePreview()" class="w-full h-10 px-3.5 rounded-xl border border-[#516053] bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#4D6E56]" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-[#516053] block mb-1">카테고리</label>
+          <div class="flex flex-wrap gap-1.5 mb-1.5">
+            <button type="button" onclick="selectNewCategory('코드 저장소')" class="text-[11px] px-2.5 py-1 rounded-lg border border-[#516053]/40 bg-[#D6E1D8]/60 hover:bg-[#4D6E56] hover:text-[#F4FBF4] transition">코드 저장소</button>
+            <button type="button" onclick="selectNewCategory('지도 연구')" class="text-[11px] px-2.5 py-1 rounded-lg border border-[#516053]/40 bg-[#D6E1D8]/60 hover:bg-[#4D6E56] hover:text-[#F4FBF4] transition">지도 연구</button>
+            <button type="button" onclick="selectNewCategory('포트폴리오')" class="text-[11px] px-2.5 py-1 rounded-lg border border-[#516053]/40 bg-[#D6E1D8]/60 hover:bg-[#4D6E56] hover:text-[#F4FBF4] transition">포트폴리오</button>
+            <button type="button" onclick="selectNewCategory('개발 일지')" class="text-[11px] px-2.5 py-1 rounded-lg border border-[#516053]/40 bg-[#D6E1D8]/60 hover:bg-[#4D6E56] hover:text-[#F4FBF4] transition">개발 일지</button>
+            <button type="button" onclick="selectNewCategory('협업 문의')" class="text-[11px] px-2.5 py-1 rounded-lg border border-[#516053]/40 bg-[#D6E1D8]/60 hover:bg-[#4D6E56] hover:text-[#F4FBF4] transition">협업 문의</button>
+          </div>
+          <input type="text" id="newCategory" value="코드 저장소" oninput="updateLivePreview()" placeholder="카테고리 직접 입력" class="w-full h-9 px-3 rounded-xl border border-[#516053] bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#4D6E56]" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-[#516053] block mb-1">강조 뱃지 (선택)</label>
+          <div class="flex flex-wrap gap-1.5 mb-1.5">
+            <button type="button" onclick="selectNewBadge('실시간 커밋')" class="text-[10px] px-2 py-0.5 rounded border border-[#516053]/40 bg-white hover:bg-[#1E3024] hover:text-white transition">실시간 커밋</button>
+            <button type="button" onclick="selectNewBadge('인터랙티브')" class="text-[10px] px-2 py-0.5 rounded border border-[#516053]/40 bg-white hover:bg-[#1E3024] hover:text-white transition">인터랙티브</button>
+            <button type="button" onclick="selectNewBadge('대표 프로젝트')" class="text-[10px] px-2 py-0.5 rounded border border-[#516053]/40 bg-white hover:bg-[#1E3024] hover:text-white transition">대표 프로젝트</button>
+            <button type="button" onclick="selectNewBadge('NEW')" class="text-[10px] px-2 py-0.5 rounded border border-[#516053]/40 bg-white hover:bg-[#1E3024] hover:text-white transition">NEW</button>
+          </div>
+          <input type="text" id="newBadge" placeholder="뱃지 문구 (예: 실시간 커밋, NEW)" oninput="updateLivePreview()" class="w-full h-9 px-3 rounded-xl border border-[#516053] bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#4D6E56]" />
+        </div>
+
+        <!-- 실시간 미리보기 -->
+        <div class="p-3 rounded-2xl bg-[#D6E1D8]/40 border border-[#516053]/30 space-y-1">
+          <div class="text-[11px] font-semibold text-[#516053]">실시간 미리보기</div>
+          <div class="p-3 bg-[#F4FBF4] rounded-xl border border-[#516053]/40 flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#4D6E56] text-[#F4FBF4] flex items-center justify-center shrink-0">
+              🔗
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span id="prevCat" class="text-[10px] font-semibold text-[#516053]">코드 저장소</span>
+                <span id="prevBadge" class="hidden px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#4D6E56] text-[#F4FBF4]">NEW</span>
+              </div>
+              <h4 id="prevTitle" class="text-sm font-bold text-[#1E3024] truncate">링크 제목</h4>
+              <p id="prevSub" class="text-xs text-[#516053] truncate">링크 상세 설명</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAddLinkModal()" class="h-10 px-4 text-xs font-semibold rounded-xl border border-[#516053] bg-white hover:bg-[#D6E1D8] cursor-pointer">
+            취소
+          </button>
+          <button type="submit" class="h-10 px-5 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] text-xs font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition">
+            + 링크 추가하기
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- 시크릿 관리자 모달 -->
   <div id="adminModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -286,7 +402,7 @@
         subtitle: "공간 데이터를 시각화한 인터랙티브 WebGIS 프로젝트 모음입니다.",
         url: "https://gis-lab.example.com",
         badge: "인터랙티브",
-        badgeBg: "#1E3024",
+        badgeBg: "#4D6E56",
         badgeText: "#F4FBF4",
         clickCount: 218,
         icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`
@@ -310,8 +426,8 @@
         subtitle: "공간정보 분석과 Next.js, 모던 웹 프론트엔드 스터디 개발 로그입니다.",
         url: "https://velog.io/@narin-kim",
         badge: "스터디 노트",
-        badgeBg: "#D6E1D8",
-        badgeText: "#1E3024",
+        badgeBg: "#4D6E56",
+        badgeText: "#F4FBF4",
         clickCount: 97,
         icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>`
       },
@@ -322,7 +438,7 @@
         subtitle: "공간정보 데이터베이스 및 알고리즘 텀 프로젝트 보고서와 데모",
         url: "https://notion.so/narin/term-projects",
         badge: "학부 연구",
-        badgeBg: "#1E3024",
+        badgeBg: "#4D6E56",
         badgeText: "#F4FBF4",
         clickCount: 63,
         icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`
@@ -481,8 +597,119 @@
 
     function handleAdminLogin(e) {
       e.preventDefault();
-      alert("관리자 인증이 확인되었습니다!");
       closeAdminModal();
+      openAddLinkModal();
+      showToast("관리자 인증 성공! 링크 추가 창을 엽니다.");
+    }
+
+    // 새 링크 추가 모달 관련 함수
+    function openAddLinkModal() {
+      document.getElementById("addLinkModal").classList.remove("hidden");
+      document.getElementById("newTitle").focus();
+      updateLivePreview();
+    }
+
+    function closeAddLinkModal() {
+      document.getElementById("addLinkModal").classList.add("hidden");
+      document.getElementById("newTitle").value = "";
+      document.getElementById("newUrl").value = "";
+      document.getElementById("newSubtitle").value = "";
+      document.getElementById("newCategory").value = "코드 저장소";
+      document.getElementById("newBadge").value = "";
+    }
+
+    function selectNewCategory(cat) {
+      document.getElementById("newCategory").value = cat;
+      updateLivePreview();
+    }
+
+    function selectNewBadge(badgeText) {
+      document.getElementById("newBadge").value = badgeText;
+      updateLivePreview();
+    }
+
+    function updateLivePreview() {
+      const title = document.getElementById("newTitle").value.trim() || "링크 제목";
+      const sub = document.getElementById("newSubtitle").value.trim() || "링크 상세 설명";
+      const cat = document.getElementById("newCategory").value.trim() || "코드 저장소";
+      const badge = document.getElementById("newBadge").value.trim();
+
+      document.getElementById("prevTitle").innerText = title;
+      document.getElementById("prevSub").innerText = sub;
+      document.getElementById("prevCat").innerText = cat;
+
+      const prevBadge = document.getElementById("prevBadge");
+      if (badge) {
+        prevBadge.innerText = badge;
+        prevBadge.classList.remove("hidden");
+      } else {
+        prevBadge.classList.add("hidden");
+      }
+    }
+
+    function handleAddLinkSubmit(e) {
+      e.preventDefault();
+      const title = document.getElementById("newTitle").value.trim();
+      let url = document.getElementById("newUrl").value.trim();
+      const subtitle = document.getElementById("newSubtitle").value.trim() || `${title} 바로가기`;
+      const category = document.getElementById("newCategory").value.trim() || "기타";
+      const badge = document.getElementById("newBadge").value.trim();
+
+      if (!title || !url) {
+        alert("제목과 URL은 필수 입력 항목입니다.");
+        return;
+      }
+
+      if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("mailto:")) {
+        url = "https://" + url;
+      }
+
+      const newLinkItem = {
+        id: "link-" + Date.now(),
+        category: category,
+        title: title,
+        subtitle: subtitle,
+        url: url,
+        badge: badge || undefined,
+        badgeBg: "#4D6E56",
+        badgeText: "#F4FBF4",
+        clickCount: 0,
+        icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`
+      };
+
+      // 배열 맨 앞에 추가
+      linksData.unshift(newLinkItem);
+
+      // localStorage에도 보존
+      try {
+        localStorage.setItem("MYLINK_PREVIEW_LINKS", JSON.stringify(linksData));
+      } catch (err) {
+        console.error(err);
+      }
+
+      closeAddLinkModal();
+      currentCategory = "전체";
+      renderTabs();
+      renderCards();
+      showToast(`"${title}" 링크가 성공적으로 추가되었습니다! 🎉`);
+    }
+
+    // localStorage에서 기존 데이터 복원 (뱃지 색상 시그니처 세이지 그린으로 통일 정규화)
+    try {
+      const stored = localStorage.getItem("MYLINK_PREVIEW_LINKS");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          linksData.length = 0;
+          parsed.forEach(p => {
+            p.badgeBg = "#4D6E56";
+            p.badgeText = "#F4FBF4";
+            linksData.push(p);
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
 
     // 초기 실행

@@ -93,7 +93,7 @@ function DialogContent({
     >
       <div
         className={cn(
-          "w-full max-w-sm rounded-[24px] border border-border bg-card p-6 text-card-foreground shadow-2xl relative animate-in zoom-in-95 duration-200",
+          "w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[24px] border border-border bg-card p-6 text-card-foreground shadow-2xl relative animate-in zoom-in-95 duration-200",
           className
         )}
         onClick={(e) => e.stopPropagation()}
