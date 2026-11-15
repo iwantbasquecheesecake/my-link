@@ -4,7 +4,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Share2, Check, Mail, Plus } from "lucide-react";
 import { MyLinkData, LinkItem } from "@/types/mylink";
 import { INITIAL_DATA } from "@/lib/constants";
-import { getStoredData, incrementLinkClick, addStoredLink } from "@/lib/storage";
+import { getStoredData, saveStoredData, incrementLinkClick, addStoredLink } from "@/lib/storage";
+import {
+  addFirebaseLink,
+  subscribeToFirebaseLinks,
+  incrementFirebaseLinkClick,
+} from "@/lib/firebase-links";
 import { ProfileHeader } from "@/components/profile-header";
 import { CategoryTabs } from "@/components/category-tabs";
 import { LinkCard } from "@/components/link-card";
@@ -23,11 +28,38 @@ export default function HomePage() {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isAddLinkOpen, setIsAddLinkOpen] = useState<boolean>(false);
 
-  // 1. 클라이언트 마운트 시 localStorage에서 데이터 복원
+  // 1. 클라이언트 마운트 시 localStorage 복원 및 Firebase Firestore (users/anonymous/links) 실시간 구독
   useEffect(() => {
+    // 1-1. 로컬 캐시 데이터 우선 로드
     const stored = getStoredData();
     setData(stored);
     setIsLoaded(true);
+
+    // 1-2. Firebase Firestore (users/anonymous/links) 실시간 동기화
+    const unsubscribe = subscribeToFirebaseLinks(
+      (firebaseLinks) => {
+        if (firebaseLinks.length > 0) {
+          setData((prev) => {
+            // Firestore 링크들을 최상단에 배치하고 기존 로컬 링크와 중복 제거 병합
+            const nonFirebaseLinks = prev.links.filter(
+              (localLink) => !firebaseLinks.some((fbLink) => fbLink.id === localLink.id)
+            );
+            const merged = [...firebaseLinks, ...nonFirebaseLinks];
+            const updatedData: MyLinkData = {
+              ...prev,
+              links: merged,
+            };
+            saveStoredData(updatedData);
+            return updatedData;
+          });
+        }
+      },
+      (error) => {
+        console.warn("Firebase Firestore 실시간 구독 안내:", error);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   // 2. 단축키(Ctrl+Shift+A / Cmd+Shift+A) 리스너로 히든 관리자 모달 호출
@@ -63,7 +95,7 @@ export default function HomePage() {
     }
   };
 
-  // 링크 카드 클릭 시 클릭 수 증가 처리
+  // 링크 카드 클릭 시 클릭 수 증가 처리 (로컬 + Firebase Firestore)
   const handleLinkClick = (clickedLink: LinkItem) => {
     const updatedLinks = incrementLinkClick(clickedLink.id);
     setData((prev) => ({
@@ -74,21 +106,44 @@ export default function HomePage() {
         totalClicks: (prev.analytics?.totalClicks || 0) + 1,
       },
     }));
+
+    // Firebase Firestore 클릭 수 비동기 동기화 (users/anonymous/links/{id})
+    incrementFirebaseLinkClick(clickedLink.id);
   };
 
-  // 새 링크 추가 핸들러 (localStorage 영구 저장 및 로컬 React 상태 동기화)
-  const handleAddLink = (
+  // 새 링크 추가 핸들러 (Firebase Firestore users/anonymous/links 경로에 저장)
+  const handleAddLink = async (
     newLinkInput: Omit<LinkItem, "id" | "clickCount" | "createdAt" | "updatedAt" | "order">
   ) => {
-    const { updatedData, newLink } = addStoredLink(newLinkInput);
-    setData(updatedData);
+    try {
+      // 1. Firebase Firestore (users/anonymous/links)에 저장
+      const newLink = await addFirebaseLink(newLinkInput);
 
-    // 추가된 링크 카테고리를 바로 볼 수 있도록 필요 시 카테고리 필터 전환
-    if (selectedCategory !== "전체" && selectedCategory !== newLink.category) {
-      setSelectedCategory("전체");
+      // 2. React 상태 업데이트 및 로컬 스토리지 캐시 동기화
+      setData((prev) => {
+        const exists = prev.links.some((l) => l.id === newLink.id);
+        const updatedLinks = exists ? prev.links : [newLink, ...prev.links];
+        const updatedData: MyLinkData = {
+          ...prev,
+          links: updatedLinks,
+        };
+        saveStoredData(updatedData);
+        return updatedData;
+      });
+
+      // 3. 추가된 링크 카테고리를 바로 볼 수 있도록 필요 시 카테고리 필터 전환
+      if (selectedCategory !== "전체" && selectedCategory !== newLink.category) {
+        setSelectedCategory("전체");
+      }
+
+      triggerToast(`"${newLink.title}" 링크가 Firebase에 저장되었습니다! 🎉`);
+    } catch (error) {
+      console.error("Firebase 저장 실패:", error);
+      // Firebase 연동 에러(규칙 제한 등) 발생 시 로컬 스토리지로 안전하게 폴백
+      const { updatedData, newLink } = addStoredLink(newLinkInput);
+      setData(updatedData);
+      triggerToast(`"${newLink.title}" 링크가 로컬 저장소에 저장되었습니다.`);
     }
-
-    triggerToast(`"${newLink.title}" 링크가 성공적으로 추가되었습니다! 🎉`);
   };
 
   // 활성(노출) 링크만 필터링 (isVisible === true)

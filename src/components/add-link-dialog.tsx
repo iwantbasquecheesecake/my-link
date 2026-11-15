@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,7 @@ import {
   Info,
   AlertCircle,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { LinkItem } from "@/types/mylink";
 import {
@@ -122,7 +123,7 @@ interface AddLinkDialogProps {
   onClose: () => void;
   onAddLink: (
     newLink: Omit<LinkItem, "id" | "clickCount" | "createdAt" | "updatedAt" | "order">
-  ) => void;
+  ) => Promise<void> | void;
   existingCategories?: string[];
 }
 
@@ -132,6 +133,7 @@ export function AddLinkDialog({
   onAddLink,
   existingCategories = [],
 }: AddLinkDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // 브랜드 고정 뱃지 컬러 (세이지 그린 통일)
   const badgeBgColor = "#4D6E56";
   const badgeTextColor = "#F4FBF4";
@@ -197,7 +199,7 @@ export function AddLinkDialog({
   }, [isOpen, reset, existingCategories]);
 
   // 폼 제출 핸들러 (Zod 검증 통과 후 실행)
-  const onSubmit = (data: LinkFormValues) => {
+  const onSubmit = async (data: LinkFormValues) => {
     let finalUrl = data.url.trim();
     if (
       !finalUrl.startsWith("http://") &&
@@ -207,19 +209,23 @@ export function AddLinkDialog({
       finalUrl = `https://${finalUrl}`;
     }
 
-    onAddLink({
-      title: data.title.trim(),
-      subtitle: data.subtitle?.trim() || `${data.title.trim()} 바로가기`,
-      url: finalUrl,
-      category: data.category.trim(),
-      iconName: data.iconName || "ExternalLink",
-      badge: data.badge?.trim() || undefined,
-      badgeBgColor,
-      badgeTextColor,
-      isVisible: data.isVisible,
-    });
-
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await onAddLink({
+        title: data.title.trim(),
+        subtitle: data.subtitle?.trim() || `${data.title.trim()} 바로가기`,
+        url: finalUrl,
+        category: data.category.trim(),
+        iconName: data.iconName || "ExternalLink",
+        badge: data.badge?.trim() || undefined,
+        badgeBgColor,
+        badgeTextColor,
+        isVisible: data.isVisible,
+      });
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -595,17 +601,27 @@ export function AddLinkDialog({
               type="button"
               variant="outline"
               onClick={onClose}
+              disabled={isSubmitting}
               className="h-10 px-4 text-xs font-semibold rounded-xl cursor-pointer"
             >
               취소
             </Button>
             <Button
               type="submit"
-              disabled={hasErrors && isDirty}
-              className="h-10 px-5 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] text-xs font-bold rounded-xl shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              disabled={(hasErrors && isDirty) || isSubmitting}
+              className="h-10 px-5 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] text-xs font-bold rounded-xl shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center"
             >
-              <PlusCircle className="w-4 h-4 mr-1.5 stroke-[2.2]" />
-              <span>링크 추가하기</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  <span>Firebase 저장 중...</span>
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="w-4 h-4 mr-1.5 stroke-[2.2]" />
+                  <span>링크 추가하기</span>
+                </>
+              )}
             </Button>
           </div>
         </form>
