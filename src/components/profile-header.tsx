@@ -17,6 +17,7 @@ import { LineGithubIcon } from "./icon-helper";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DeleteBioModal } from "./profile-edit-modals";
+import { EditProfileModal } from "./edit-profile-modal";
 
 interface ProfileHeaderProps {
   profile: ProfileConfig;
@@ -26,6 +27,7 @@ interface ProfileHeaderProps {
   onUpdateProfile?: (
     updates: Partial<Pick<UserProfile, "bio" | "name" | "role">>
   ) => Promise<void> | void;
+  onSaveProfile?: (data: { username: string; name: string }) => Promise<void>;
 }
 
 export function ProfileHeader({
@@ -34,12 +36,14 @@ export function ProfileHeader({
   isLoggedIn = false,
   onSecretTrigger,
   onUpdateProfile,
+  onSaveProfile,
 }: ProfileHeaderProps) {
   const clickCountRef = useRef(0);
   const lastClickTimeRef = useRef(0);
 
-  // 자기소개 삭제 확인 모달 상태
+  // 모달 상태 관리
   const [isDeleteBioOpen, setIsDeleteBioOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   // 말풍선 인라인 편집 상태
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -61,14 +65,19 @@ export function ProfileHeader({
     }
   };
 
-  // 로그인 상태일 경우 Firestore users/{uid} 및 Google 계정 정보로 통일
-  const currentEmail = isLoggedIn && userProfile?.email ? userProfile.email : profile.email;
-  const emailPrefix = currentEmail ? currentEmail.split("@")[0] : null;
-  const currentName = isLoggedIn ? (emailPrefix || userProfile?.name || profile.name) : profile.name;
-  // 프로필 사진은 구글 계정 프로필 사진(photoURL)으로 통일
-  const currentAvatarUrl = isLoggedIn && userProfile?.photoURL ? userProfile.photoURL : profile.avatarUrl;
-  const currentRole = isLoggedIn && userProfile?.role ? userProfile.role : (isLoggedIn ? "MyLink 크리에이터" : profile.role);
-  const currentBio = isLoggedIn ? (userProfile?.bio ?? profile.bio) : profile.bio;
+  // 로그인 사용자 또는 전달된 userProfile 정보 우선 적용
+  const currentEmail = userProfile?.email || profile.email;
+  const emailPrefix = currentEmail ? currentEmail.split("@")[0] : "user";
+  const currentUsername =
+    userProfile?.username || (isLoggedIn ? emailPrefix : (profile.englishName || "User Name"));
+  const currentName =
+    userProfile?.name || (isLoggedIn ? "사용자 이름" : profile.name);
+
+  // 프로필 사진: 구글 계정 프로필 사진(photoURL) 우선, 없으면 기본 avatarUrl
+  const currentAvatarUrl = userProfile?.photoURL || profile.avatarUrl;
+  const currentRole =
+    userProfile?.role || (isLoggedIn ? "MyLink 크리에이터" : profile.role);
+  const currentBio = userProfile?.bio !== undefined ? userProfile.bio : profile.bio;
 
   // 말풍선 저장 처리
   const handleSaveBio = async () => {
@@ -98,17 +107,17 @@ export function ProfileHeader({
 
         {/* 1. 프로필 사진이 말하는 듯한 유동적 크기의 소개글 말풍선 */}
         {isEditingBio ? (
-          /* 말풍선 인라인 편집 모드 */
+          /* 말풍선 인라인 편집 모드: 글자 수에 맞게 크기가 유동적으로 조절 */
           <div className="mb-4 flex flex-col items-center sm:items-start pt-1 animate-in fade-in duration-200">
-            <div className="relative w-full max-w-[94%] sm:max-w-[85%] p-3 rounded-2xl bg-[#D6E1D8]/75 dark:bg-[#273A2D]/90 border border-[#4D6E56]/40 shadow-xs">
+            <div className="relative w-full max-w-full p-3.5 rounded-2xl bg-[#D6E1D8]/80 dark:bg-[#273A2D]/90 border border-[#4D6E56]/40 shadow-xs">
               <textarea
                 value={bioDraft}
                 onChange={(e) => setBioDraft(e.target.value)}
                 placeholder="말풍선에 띄울 자기소개를 입력해주세요 (최대 100자)"
                 maxLength={100}
-                rows={2}
+                rows={Math.min(5, Math.max(2, Math.ceil(bioDraft.length / 28)))}
                 autoFocus
-                className="w-full text-xs sm:text-[13px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:outline-none leading-relaxed"
+                className="w-full text-xs sm:text-[13px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:outline-none leading-relaxed break-all [overflow-wrap:anywhere]"
               />
               <div className="flex items-center justify-between pt-2 border-t border-[#4D6E56]/20">
                 <span className="text-[10px] text-muted-foreground font-medium">
@@ -135,24 +144,27 @@ export function ProfileHeader({
                   </button>
                 </div>
               </div>
-              {/* 말풍선 아래쪽 꼬리 */}
+              {/* 말풍선 아래쪽 꼬리 (아바타 가리킴) */}
               <div className="absolute -bottom-2 left-1/2 sm:left-11 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-[#D6E1D8]/90 dark:border-t-[#273A2D]" />
             </div>
           </div>
         ) : currentBio ? (
-          /* 말풍선 읽기 모드 (로그인 시 우측에 링크 카드 스타일 수정/삭제 버튼 제공) */
+          /* 말풍선 읽기 모드: 내용 길이에 맞춰 가로/세로 크기가 자유자재로 확장 */
           <div className="mb-4 flex flex-col items-center sm:items-start pt-1">
-            <div className="relative inline-block w-fit max-w-[94%] sm:max-w-[85%] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-[#D6E1D8]/65 dark:bg-[#273A2D]/85 border border-[#4D6E56]/30 dark:border-[#4D6E56]/40 shadow-xs text-xs sm:text-[13px] text-foreground leading-relaxed break-keep animate-in fade-in duration-300">
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                <p className="flex items-center gap-1.5 font-medium flex-1">
-                  <span className="text-[#4D6E56] font-bold text-sm leading-none font-serif select-none">“</span>
-                  <span>{currentBio}</span>
-                  <span className="text-[#4D6E56] font-bold text-sm leading-none font-serif select-none">”</span>
-                </p>
+            <div className="relative inline-block w-fit max-w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-[#D6E1D8]/65 dark:bg-[#273A2D]/85 border border-[#4D6E56]/30 dark:border-[#4D6E56]/40 shadow-xs text-xs sm:text-[13px] text-foreground leading-relaxed animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                {/* 본문 텍스트: 글자가 아무리 길어도 밖으로 삐져나가지 않고 자연스럽게 줄바꿈 */}
+                <div className="min-w-0 flex-1 break-all [overflow-wrap:anywhere]">
+                  <p className="font-medium inline">
+                    <span className="text-[#4D6E56] font-bold text-sm leading-none font-serif select-none mr-1">“</span>
+                    <span className="break-all [overflow-wrap:anywhere]">{currentBio}</span>
+                    <span className="text-[#4D6E56] font-bold text-sm leading-none font-serif select-none ml-1">”</span>
+                  </p>
+                </div>
 
                 {/* 로그인 상태 전용 말풍선 수정/삭제 버튼 */}
                 {isLoggedIn && (
-                  <div className="flex items-center gap-1 shrink-0 ml-auto pt-1 sm:pt-0">
+                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-center pt-0.5 sm:pt-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -178,7 +190,7 @@ export function ProfileHeader({
                 )}
               </div>
 
-              {/* 말풍선 아래쪽 꼬리 */}
+              {/* 말풍선 아래쪽 꼬리 (아바타 가리킴) */}
               <div className="absolute -bottom-2 left-1/2 sm:left-11 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-[#D6E1D8]/90 dark:border-t-[#273A2D]" />
             </div>
           </div>
@@ -231,20 +243,42 @@ export function ProfileHeader({
 
           {/* 프로필 정보 */}
           <div className="flex-1 min-w-0 flex flex-col justify-center">
-            {/* 이름 & 소속 */}
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground flex items-center justify-center sm:justify-start gap-1.5">
-              <span>{currentName}</span>
-              {isLoggedIn && (
-                <span title="Google 인증 완료 계정" className="inline-flex text-[#4D6E56]">
-                  <CheckCircle2 className="w-4 h-4 ml-0.5" />
-                </span>
+            {/* 이름, Username & 프로필 수정 버튼 */}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-1.5">
+                <span>{currentName}</span>
+                {isLoggedIn && (
+                  <span title="Google 인증 완료 계정" className="inline-flex text-[#4D6E56]">
+                    <CheckCircle2 className="w-4 h-4 ml-0.5" />
+                  </span>
+                )}
+                {!isLoggedIn && (
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-1">
+                    {profile.englishName || "User Name"}
+                  </span>
+                )}
+              </h1>
+
+              {/* 로그인 상태 전용 프로필 정보(Username, 이름) 수정 버튼 */}
+              {isLoggedIn && onSaveProfile && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileOpen(true)}
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold text-[#4D6E56] bg-[#4D6E56]/10 hover:bg-[#4D6E56] hover:text-[#F4FBF4] border border-[#4D6E56]/25 transition-all cursor-pointer shadow-2xs active:scale-95"
+                  title="Username 및 이름 수정"
+                >
+                  <Pencil className="w-2.5 h-2.5 stroke-[2.2]" />
+                  <span>프로필 수정</span>
+                </button>
               )}
-              {!isLoggedIn && (
-                <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-1">
-                  {profile.englishName || "User Name"}
-                </span>
-              )}
-            </h1>
+            </div>
+
+            {/* Display Name (Username) */}
+            {isLoggedIn && currentUsername && (
+              <p className="text-xs sm:text-[13px] font-semibold text-muted-foreground flex items-center justify-center sm:justify-start gap-1 mt-0.5">
+                <span className="text-[#4D6E56] dark:text-[#8FA594]">@{currentUsername}</span>
+              </p>
+            )}
 
             <p className="text-xs sm:text-sm font-medium text-[#4D6E56] dark:text-[#8FA594] mt-0.5">
               {currentRole}
@@ -331,6 +365,18 @@ export function ProfileHeader({
         onClose={() => setIsDeleteBioOpen(false)}
         onConfirm={handleConfirmDeleteBio}
       />
+
+      {/* 프로필 정보 (Username, 이름) 수정 모달 */}
+      {isLoggedIn && onSaveProfile && userProfile && (
+        <EditProfileModal
+          isOpen={isEditProfileOpen}
+          onClose={() => setIsEditProfileOpen(false)}
+          currentUsername={userProfile.username || emailPrefix}
+          currentName={userProfile.name || currentName}
+          currentUid={userProfile.uid}
+          onSave={onSaveProfile}
+        />
+      )}
     </>
   );
 }

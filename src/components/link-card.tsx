@@ -12,12 +12,13 @@ import { formatUpdatedAt, formatFullDateTime } from "@/lib/utils";
 interface LinkCardProps {
   link: LinkItem;
   onLinkClick: (link: LinkItem) => void;
-  onUpdateLink: (
+  onUpdateLink?: (
     linkId: string,
     updates: Partial<Omit<LinkItem, "id" | "clickCount" | "createdAt">>
   ) => Promise<void> | void;
-  onDeleteClick: (link: LinkItem) => void;
+  onDeleteClick?: (link: LinkItem) => void;
   existingCategories?: string[];
+  isEditable?: boolean;
 }
 
 export function LinkCard({
@@ -26,6 +27,7 @@ export function LinkCard({
   onUpdateLink,
   onDeleteClick,
   existingCategories = [],
+  isEditable = true,
 }: LinkCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -36,7 +38,9 @@ export function LinkCard({
         link={link}
         existingCategories={existingCategories}
         onSave={async (linkId, updates) => {
-          await onUpdateLink(linkId, updates);
+          if (onUpdateLink) {
+            await onUpdateLink(linkId, updates);
+          }
           setIsEditing(false);
         }}
         onCancel={() => setIsEditing(false)}
@@ -57,7 +61,7 @@ export function LinkCard({
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onDeleteClick(link);
+    onDeleteClick?.(link);
   };
 
   return (
@@ -136,32 +140,38 @@ export function LinkCard({
           </div>
         </div>
 
-        {/* 항상 표시되는 액션 버튼들 (수정 / 삭제) */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* 수정 버튼 */}
-          <button
-            type="button"
-            onClick={handleEditClick}
-            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-semibold text-[#4D6E56] bg-[#4D6E56]/10 hover:bg-[#4D6E56] hover:text-[#F4FBF4] border border-[#4D6E56]/25 transition-all cursor-pointer shadow-2xs active:scale-95"
-            title="링크 수정 (인라인 편집)"
-            aria-label={`${link.title} 수정`}
-          >
-            <Pencil className="w-3 h-3 stroke-[2.2]" />
-            <span>수정</span>
-          </button>
+        {/* 항상 표시되는 액션 버튼들 (수정 / 삭제) - 편집 가능 모드일 때만 노출 */}
+        {isEditable && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* 수정 버튼 */}
+            {onUpdateLink && (
+              <button
+                type="button"
+                onClick={handleEditClick}
+                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-semibold text-[#4D6E56] bg-[#4D6E56]/10 hover:bg-[#4D6E56] hover:text-[#F4FBF4] border border-[#4D6E56]/25 transition-all cursor-pointer shadow-2xs active:scale-95"
+                title="링크 수정 (인라인 편집)"
+                aria-label={`${link.title} 수정`}
+              >
+                <Pencil className="w-3 h-3 stroke-[2.2]" />
+                <span>수정</span>
+              </button>
+            )}
 
-          {/* 삭제 버튼 */}
-          <button
-            type="button"
-            onClick={handleDeleteClick}
-            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white border border-red-200 dark:border-red-900/50 transition-all cursor-pointer shadow-2xs active:scale-95"
-            title="링크 삭제"
-            aria-label={`${link.title} 삭제`}
-          >
-            <Trash2 className="w-3 h-3 stroke-[2.2]" />
-            <span>삭제</span>
-          </button>
-        </div>
+            {/* 삭제 버튼 */}
+            {onDeleteClick && (
+              <button
+                type="button"
+                onClick={handleDeleteClick}
+                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white border border-red-200 dark:border-red-900/50 transition-all cursor-pointer shadow-2xs active:scale-95"
+                title="링크 삭제"
+                aria-label={`${link.title} 삭제`}
+              >
+                <Trash2 className="w-3 h-3 stroke-[2.2]" />
+                <span>삭제</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

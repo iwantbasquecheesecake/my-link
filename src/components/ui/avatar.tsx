@@ -63,6 +63,7 @@ function AvatarImage({
       width={width}
       height={height}
       priority={priority}
+      unoptimized
       onError={() => setHasError(true)}
       className={cn("aspect-square h-full w-full object-cover", className)}
       {...props}

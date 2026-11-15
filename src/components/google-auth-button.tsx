@@ -35,7 +35,7 @@ export function GoogleAuthButton({
   if (user) {
     const userEmail = profile?.email || user.email;
     const emailPrefix = userEmail ? userEmail.split("@")[0] : null;
-    const displayName = emailPrefix || profile?.name || user.displayName || "사용자";
+    const displayName = profile?.username || emailPrefix || profile?.name || user.displayName || "사용자";
     const photoURL = profile?.photoURL || user.photoURL || undefined;
 
     return (
