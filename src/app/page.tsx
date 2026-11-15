@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Share2, Check, Plus, RefreshCw, Loader2, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Share2, Check, Plus, RefreshCw, Loader2, Sparkles, ExternalLink } from "lucide-react";
 import { type User } from "firebase/auth";
 import { LinkItem } from "@/types/mylink";
 import { INITIAL_DATA } from "@/lib/constants";
@@ -364,6 +365,26 @@ export default function HomePage() {
               onLogin={handleGoogleLogin}
               onLogout={handleGoogleLogout}
             />
+
+            {/* 2. 내 공개 페이지 바로가기 버튼 (로그인 사용자 전용) */}
+            {currentUser && (
+              <Link
+                href={`/${userProfile?.displayName || (currentUser.email ? currentUser.email.split("@")[0] : currentUser.uid)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2.5 sm:px-3 rounded-full text-xs font-bold text-[#4D6E56] border-[#4D6E56]/40 hover:bg-[#4D6E56]/10 hover:border-[#4D6E56] cursor-pointer shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
+                  title={`내 MyLink 공개 페이지 바로가기 (/${userProfile?.displayName || "내페이지"})`}
+                  aria-label="내 공개 페이지 바로가기"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-[#4D6E56]" />
+                  <span className="hidden sm:inline">내 페이지</span>
+                </Button>
+              </Link>
+            )}
 
             {/* 새로고침 버튼 (로그인 사용자 전용 - TanStack Query refetch) */}
             {currentUser && (
