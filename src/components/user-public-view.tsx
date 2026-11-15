@@ -156,7 +156,7 @@ export function UserPublicView({ initialUser, initialLinks }: UserPublicViewProp
               M
             </div>
             <span className="font-bold text-lg tracking-tight text-foreground group-hover:text-[#4D6E56] transition-colors">
-              MyLink<span className="text-[#4D6E56] ml-0.5">•</span>
+              MyLink
             </span>
           </Link>
 

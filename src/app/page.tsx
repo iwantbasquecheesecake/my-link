@@ -353,11 +353,10 @@ export default function HomePage() {
       <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-md border-b border-border/80">
         <div className="max-w-[540px] mx-auto px-4 h-14 flex items-center justify-between">
           {/* 브랜드 워드마크 */}
-          <div className="flex items-center gap-1.5 select-none">
+          <div className="flex items-center select-none">
             <span className="font-extrabold text-xl tracking-tight text-[#1E3024] dark:text-white">
               MyLink
             </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#4D6E56] animate-pulse" />
           </div>
 
           {/* 우측 퀵 액션 영역 */}

@@ -240,13 +240,6 @@ export function ProfileHeader({
                 <AvatarFallback>{currentUsername.slice(0, 2)}</AvatarFallback>
               </Avatar>
             </button>
-            <span
-              className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-white ring-2 shadow-xs ${
-                isLoggedIn
-                  ? "bg-[#4D6E56] ring-[#4D6E56]/30"
-                  : "bg-gray-400 ring-gray-400/30"
-              }`}
-            />
           </div>
 
           {/* 프로필 정보 */}
