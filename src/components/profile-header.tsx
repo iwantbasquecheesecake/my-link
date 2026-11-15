@@ -27,7 +27,11 @@ interface ProfileHeaderProps {
   onUpdateProfile?: (
     updates: Partial<Pick<UserProfile, "bio" | "name" | "role">>
   ) => Promise<void> | void;
-  onSaveProfile?: (data: { username: string; displayName: string }) => Promise<void>;
+  onSaveProfile?: (data: {
+    username: string;
+    displayName: string;
+    role: string;
+  }) => Promise<void>;
 }
 
 export function ProfileHeader({
@@ -365,13 +369,14 @@ export function ProfileHeader({
         onConfirm={handleConfirmDeleteBio}
       />
 
-      {/* 프로필 정보 (별명 Username & 고유 주소 Display Name) 수정 모달 */}
+      {/* 프로필 정보 (별명 Username, 직업 Role, 고유 주소 Display Name) 수정 모달 */}
       {isLoggedIn && onSaveProfile && userProfile && (
         <EditProfileModal
           isOpen={isEditProfileOpen}
           onClose={() => setIsEditProfileOpen(false)}
           currentUsername={userProfile.username || emailPrefix}
           currentDisplayName={userProfile.displayName || emailPrefix}
+          currentRole={userProfile.role || "MyLink 크리에이터"}
           currentUid={userProfile.uid}
           currentEmail={currentEmail}
           onSave={onSaveProfile}

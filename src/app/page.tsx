@@ -247,13 +247,18 @@ export default function HomePage() {
     }
   };
 
-  // 프로필 정보 (별명 Username & 고유 주소 Display Name) 수정 및 users/{userid}/profile 저장 핸들러
-  const handleSaveProfile = async (updates: { username: string; displayName: string }) => {
+  // 프로필 정보 (별명 Username, 직업 Role, 고유 주소 Display Name) 수정 및 users/{userid}/profile 저장 핸들러
+  const handleSaveProfile = async (updates: {
+    username: string;
+    displayName: string;
+    role: string;
+  }) => {
     if (!currentUser) return;
     try {
       await saveProfileMutation.mutateAsync({
         username: updates.username,
         displayName: updates.displayName,
+        role: updates.role,
         previousDisplayName: userProfile?.displayName,
       });
       triggerToast("프로필 정보가 성공적으로 변경되었습니다! ✨");

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { User, Sparkles, Globe, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { User, Sparkles, Globe, Briefcase, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,14 @@ interface EditProfileModalProps {
   onClose: () => void;
   currentUsername: string; // 현재 별명 (Username)
   currentDisplayName: string; // 현재 고유 주소 ID (DisplayName)
+  currentRole?: string; // 현재 직업 / 역할 소개 (Role)
   currentUid?: string;
   currentEmail?: string;
-  onSave: (data: { username: string; displayName: string }) => Promise<void>;
+  onSave: (data: {
+    username: string;
+    displayName: string;
+    role: string;
+  }) => Promise<void>;
 }
 
 export function EditProfileModal({
@@ -27,6 +32,7 @@ export function EditProfileModal({
   onClose,
   currentUsername,
   currentDisplayName,
+  currentRole = "MyLink 크리에이터",
   currentUid,
   currentEmail,
   onSave,
@@ -34,6 +40,9 @@ export function EditProfileModal({
   // 사용자가 변경 가능한 별명 (Username)
   const [username, setUsername] = useState(currentUsername);
   
+  // 사용자가 변경 가능한 직업/역할 소개 (Role)
+  const [role, setRole] = useState(currentRole);
+
   // 사용자가 변경 가능한 고유 주소 ID (DisplayName)
   const [displayName, setDisplayName] = useState(currentDisplayName);
 
@@ -50,16 +59,23 @@ export function EditProfileModal({
   useEffect(() => {
     if (isOpen) {
       setUsername(currentUsername || "");
+      setRole(currentRole || "MyLink 크리에이터");
       setDisplayName(currentDisplayName || "");
       setCheckStatus("available");
       setCheckMessage("현재 사용 중인 본인의 고유 주소 ID입니다.");
       setFormError(null);
     }
-  }, [isOpen, currentUsername, currentDisplayName]);
+  }, [isOpen, currentUsername, currentDisplayName, currentRole]);
 
   // 별명 입력값 변경 핸들러
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUsername(e.target.value);
+    setFormError(null);
+  };
+
+  // 직업/역할 소개 입력값 변경 핸들러
+  const handleRoleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRole(e.target.value);
     setFormError(null);
   };
 
@@ -110,6 +126,7 @@ export function EditProfileModal({
     setFormError(null);
 
     const cleanUsername = username.trim();
+    const cleanRole = role.trim();
     const cleanDisplayName = displayName.trim();
 
     if (!cleanUsername) {
@@ -146,6 +163,7 @@ export function EditProfileModal({
       await onSave({
         username: cleanUsername,
         displayName: cleanDisplayName,
+        role: cleanRole || "MyLink 크리에이터",
       });
       onClose();
     } catch (error) {
@@ -176,12 +194,12 @@ export function EditProfileModal({
             프로필 정보 수정
           </DialogTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            프로필에 노출될 별명(Username)과 나만의 고유 링크 주소(Display Name)를 수정할 수 있습니다.
+            별명(Username), 직업/역할 소개(Role), 나만의 고유 링크 주소(Display Name)를 수정할 수 있습니다.
           </p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {/* 1. 내 별명 (Username) - 프로필에 노출되는 호칭 */}
+          {/* 1. 내 별명 (Username) */}
           <div className="p-3.5 rounded-2xl bg-muted/40 border border-[#4D6E56]/30 dark:border-[#4D6E56]/40 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -209,12 +227,39 @@ export function EditProfileModal({
             />
           </div>
 
-          {/* 2. 고유 주소 ID (Display Name) - 동적 라우팅 /[displayName] 에 사용되는 고유 아이디 */}
+          {/* 2. 직업 및 역할 소개 (Role) */}
+          <div className="p-3.5 rounded-2xl bg-muted/40 border border-[#4D6E56]/30 dark:border-[#4D6E56]/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-[#4D6E56]" />
+                <span>2. 직업 및 역할 (Role)</span>
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-md bg-[#4D6E56]/15 text-[#4D6E56] text-[10px]">
+                  한 줄 소개
+                </span>
+              </label>
+              <span className="text-[11px] text-muted-foreground">최대 30자</span>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              별명 바로 밑에 표시될 나의 직업, 역할, 전문 분야 등을 입력하세요.
+            </p>
+
+            <Input
+              type="text"
+              placeholder="예: 프론트엔드 개발자, UI/UX 디자이너, 대학생, 크리에이터"
+              value={role}
+              onChange={handleRoleChange}
+              maxLength={30}
+              className="text-xs h-10 font-medium bg-background"
+            />
+          </div>
+
+          {/* 3. 고유 주소 ID (Display Name) */}
           <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-[#4D6E56]" />
-                <span>2. 고유 주소 ID (Display Name)</span>
+                <span>3. 고유 주소 ID (Display Name)</span>
                 <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-md bg-muted text-foreground text-[10px] border border-border">
                   내 링크 주소
                 </span>

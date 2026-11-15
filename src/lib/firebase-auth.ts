@@ -323,7 +323,7 @@ export async function checkDisplayNameAvailability(
 export const checkUsernameAvailability = checkDisplayNameAvailability;
 
 /**
- * 사용자 프로필 (별명 Username 및 고유 주소 ID Display Name) 수정 저장 함수
+ * 사용자 프로필 (별명 Username, 고유 주소 ID Display Name, 직업/역할 Role) 수정 저장 함수
  * - users/{userid}/profile 및 users/{userid}에 업데이트
  * - displayName 변경 시 이전 displayNames 색인 문서 삭제 및 신규 색인 생성
  */
@@ -332,6 +332,7 @@ export async function saveUserProfile(
   updates: {
     username: string;
     displayName: string;
+    role?: string;
     name?: string;
   },
   previousDisplayName?: string
@@ -339,34 +340,25 @@ export async function saveUserProfile(
   const now = new Date().toISOString();
   const cleanUsername = updates.username.trim();
   const cleanDisplayName = updates.displayName.trim();
+  const cleanRole = updates.role !== undefined ? updates.role.trim() || "MyLink 크리에이터" : "MyLink 크리에이터";
   const lowerNew = cleanDisplayName.toLowerCase();
   const lowerPrev = previousDisplayName ? previousDisplayName.trim().toLowerCase() : "";
 
+  const payload: Record<string, unknown> = {
+    username: cleanUsername,
+    displayName: cleanDisplayName,
+    name: cleanUsername,
+    role: cleanRole,
+    updatedAt: now,
+  };
+
   // 1. users/{uid}/profile/info 서브컬렉션 문서 업데이트 (사용자 지정 경로: users/{userid}/profile)
   const subProfileRef = doc(db, "users", uid, "profile", "info");
-  await setDoc(
-    subProfileRef,
-    {
-      username: cleanUsername,
-      displayName: cleanDisplayName,
-      name: cleanUsername,
-      updatedAt: now,
-    },
-    { merge: true }
-  );
+  await setDoc(subProfileRef, payload, { merge: true });
 
   // 2. users/{uid} 메인 유저 문서 동기화
   const userDocRef = doc(db, "users", uid);
-  await setDoc(
-    userDocRef,
-    {
-      username: cleanUsername,
-      displayName: cleanDisplayName,
-      name: cleanUsername,
-      updatedAt: now,
-    },
-    { merge: true }
-  );
+  await setDoc(userDocRef, payload, { merge: true });
 
   // 3. displayName이 변경된 경우 이전 색인 문서 정리
   if (lowerPrev && lowerPrev !== lowerNew) {
