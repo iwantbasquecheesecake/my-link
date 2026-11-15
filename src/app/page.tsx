@@ -388,7 +388,7 @@ export default function HomePage() {
             <h2 className="text-base sm:text-lg font-bold text-[#1E3024] dark:text-[#F4FBF4] flex items-center gap-1.5">
               <span>{selectedCategory}</span>
               <span className="text-xs font-normal text-muted-foreground">
-                ({filteredLinks.length + (isAddingLink ? 1 : 0)})
+                ({filteredLinks.length})
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#4D6E56] bg-[#4D6E56]/10 px-2 py-0.5 rounded-full border border-[#4D6E56]/20">
                 <Sparkles className="w-2.5 h-2.5" />

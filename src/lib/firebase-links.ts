@@ -64,6 +64,7 @@ export function parseCreatedAt(value: unknown): { iso: string; timestamp: number
  * LinkItem 목록을 createdAt 기준 최신순(내림차순, 최신 등록일이 상단)으로 정렬
  */
 export function sortByCreatedAtDesc(links: LinkItem[]): LinkItem[] {
+  if (!Array.isArray(links)) return [];
   return [...links].sort((a, b) => {
     const timeA = parseCreatedAt(a.createdAt).timestamp;
     const timeB = parseCreatedAt(b.createdAt).timestamp;
@@ -183,8 +184,8 @@ export async function getFirebaseLinks(): Promise<LinkItem[]> {
       });
       return sortByCreatedAtDesc(links);
     } catch (fallbackError) {
-      console.error("Firestore getFirebaseLinks 최종 실패:", fallbackError);
-      throw fallbackError;
+      console.warn("Firestore getFirebaseLinks 최종 실패 (안전하게 빈 배열 반환):", fallbackError);
+      return [];
     }
   }
 }
@@ -198,57 +199,59 @@ export function subscribeToFirebaseLinks(
   onError?: (error: Error) => void
 ): () => void {
   const collectionRef = getLinksCollectionRef();
-  const q = query(collectionRef, orderBy("createdAt", "desc"));
+  let activeUnsubscribe: (() => void) | null = null;
+  let hasFallenBack = false;
 
-  try {
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        const links: LinkItem[] = [];
-        snapshot.forEach((d) => {
-          links.push(mapDocToLinkItem(d.id, d.data()));
-        });
-        // 항상 createdAt 기준 최신순 정렬 유지
-        onUpdate(sortByCreatedAtDesc(links));
-      },
-      (error) => {
-        console.warn("Firestore 실시간 쿼리(orderBy) 구독 에러, 컬렉션 직접 구독으로 폴백:", error);
-        // 폴백: 기본 컬렉션 구독 후 클라이언트에서 최신순 정렬
-        const fallbackUnsubscribe = onSnapshot(
+  const handleSnapshot = (snapshot: QuerySnapshot<DocumentData>) => {
+    try {
+      const links: LinkItem[] = [];
+      snapshot.forEach((d) => {
+        links.push(mapDocToLinkItem(d.id, d.data()));
+      });
+      onUpdate(sortByCreatedAtDesc(links));
+    } catch (err) {
+      console.warn("Firestore 스냅샷 파싱 에러:", err);
+    }
+  };
+
+  const handleError = (error: Error) => {
+    console.warn("Firestore 실시간 구독 알림:", error.message || error);
+    if (!hasFallenBack) {
+      hasFallenBack = true;
+      try {
+        activeUnsubscribe = onSnapshot(
           collectionRef,
-          (snapshot) => {
-            const links: LinkItem[] = [];
-            snapshot.forEach((d) => {
-              links.push(mapDocToLinkItem(d.id, d.data()));
-            });
-            onUpdate(sortByCreatedAtDesc(links));
-          },
+          handleSnapshot,
           (fallbackErr) => {
-            console.error("Firestore links 실시간 구독 최종 에러:", fallbackErr);
+            console.warn("Firestore 기본 구독 알림:", fallbackErr.message || fallbackErr);
             if (onError) onError(fallbackErr);
           }
         );
-        return fallbackUnsubscribe;
+      } catch (fallbackEx) {
+        console.warn("Firestore 폴백 구독 예외:", fallbackEx);
       }
-    );
+    } else {
+      if (onError) onError(error);
+    }
+  };
 
-    return unsubscribe;
+  try {
+    const q = query(collectionRef, orderBy("createdAt", "desc"));
+    activeUnsubscribe = onSnapshot(q, handleSnapshot, handleError);
   } catch (err) {
-    console.warn("Firestore onSnapshot 즉시 오류, 기본 컬렉션 시도:", err);
-    return onSnapshot(
-      collectionRef,
-      (snapshot) => {
-        const links: LinkItem[] = [];
-        snapshot.forEach((d) => {
-          links.push(mapDocToLinkItem(d.id, d.data()));
-        });
-        onUpdate(sortByCreatedAtDesc(links));
-      },
-      (e) => {
-        if (onError) onError(e);
-      }
-    );
+    console.warn("Firestore onSnapshot 초기화 실패:", err);
+    try {
+      activeUnsubscribe = onSnapshot(collectionRef, handleSnapshot, handleError);
+    } catch (finalErr) {
+      console.warn("Firestore 최종 구독 실패:", finalErr);
+    }
   }
+
+  return () => {
+    if (activeUnsubscribe) {
+      activeUnsubscribe();
+    }
+  };
 }
 
 /**
