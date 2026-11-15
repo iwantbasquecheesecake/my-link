@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { ProfileConfig } from "@/types/mylink";
 import { UserProfile } from "@/lib/firebase-auth";
-import { LineGithubIcon } from "./icon-helper";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DeleteBioModal } from "./profile-edit-modals";
@@ -299,59 +298,6 @@ export function ProfileHeader({
               )}
             </div>
           </div>
-        </div>
-
-        {/* 소셜 링크 아이콘 바 */}
-        <div className="mt-4 pt-4 border-t border-border/60 flex items-center justify-center sm:justify-start gap-2">
-          {profile.socials.github && (
-            <a
-              href={profile.socials.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-foreground hover:bg-[#4D6E56] hover:text-[#F4FBF4] hover:border-[#4D6E56] transition-all duration-200 active:scale-95 shadow-xs"
-              title="GitHub 방문"
-              aria-label="GitHub 프로필"
-            >
-              <LineGithubIcon className="w-5 h-5" />
-            </a>
-          )}
-
-          {profile.socials.linkedin && (
-            <a
-              href={profile.socials.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-foreground hover:bg-[#4D6E56] hover:text-[#F4FBF4] hover:border-[#4D6E56] transition-all duration-200 active:scale-95 shadow-xs"
-              title="LinkedIn 방문"
-              aria-label="LinkedIn 프로필"
-            >
-              <span className="font-bold text-xs">in</span>
-            </a>
-          )}
-
-          {profile.socials.blog && (
-            <a
-              href={profile.socials.blog}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-foreground hover:bg-[#4D6E56] hover:text-[#F4FBF4] hover:border-[#4D6E56] transition-all duration-200 active:scale-95 shadow-xs font-bold text-[10px]"
-              title="기술 블로그 방문"
-              aria-label="기술 블로그"
-            >
-              VELOG
-            </a>
-          )}
-
-          {currentEmail && (
-            <a
-              href={`mailto:${currentEmail}`}
-              className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-foreground hover:bg-[#4D6E56] hover:text-[#F4FBF4] hover:border-[#4D6E56] transition-all duration-200 active:scale-95 shadow-xs"
-              title="이메일 보내기"
-              aria-label="이메일 연락"
-            >
-              <Mail className="w-4 h-4" />
-            </a>
-          )}
         </div>
       </Card>
 
