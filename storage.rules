@@ -1,0 +1,34 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 로그인 여부 확인
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 본인 확인
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 업로드 이미지 파일 유효성 검사 (5MB 이하, 이미지 파일만 허용)
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // 프로필 이미지 경로: users/{userId}/profile/{fileName}
+    match /users/{userId}/profile/{fileName} {
+      // 누구나 프로필 이미지 조회 가능
+      allow read: if true;
+      // 본인만 5MB 이하의 이미지 파일 업로드/수정/삭제 가능
+      allow write: if isOwner(userId) && (request.resource == null || isValidImage());
+    }
+
+    // 기본 차단
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

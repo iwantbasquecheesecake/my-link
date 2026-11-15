@@ -147,7 +147,7 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
     try {
       await setDoc(
         doc(db, "displayNames", profile.displayName.toLowerCase()),
-        { uid: user.uid, displayName: profile.displayName, email: profile.email, updatedAt: now },
+        { uid: user.uid, displayName: profile.displayName, updatedAt: now },
         { merge: true }
       );
       await setDoc(
@@ -193,7 +193,7 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
     try {
       await setDoc(
         doc(db, "displayNames", profile.displayName.toLowerCase()),
-        { uid: user.uid, displayName: profile.displayName, email: profile.email, updatedAt: now },
+        { uid: user.uid, displayName: profile.displayName, updatedAt: now },
         { merge: true }
       );
       await setDoc(
