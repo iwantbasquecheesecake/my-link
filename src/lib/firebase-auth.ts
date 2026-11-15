@@ -259,18 +259,18 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 /**
- * Username (Display Name) 중복 확인 함수
+ * 고유 주소 ID (Display Name) 중복 확인 함수
  * - 영문, 숫자, 특수문자(-, _, .) 2~20자 유효성 검사
- * - Firestore usernames/{username} 고유 문서 조회
+ * - Firestore displayNames/{displayName} 및 usernames/{displayName} 고유 문서 조회
  */
-export async function checkUsernameAvailability(
-  username: string,
+export async function checkDisplayNameAvailability(
+  displayName: string,
   currentUid?: string
 ): Promise<{ available: boolean; message: string }> {
-  const trimmed = username.trim();
-  
+  const trimmed = displayName.trim();
+
   if (!trimmed) {
-    return { available: false, message: "Username을 입력해주세요." };
+    return { available: false, message: "고유 주소 ID를 입력해주세요." };
   }
   if (trimmed.length < 2) {
     return { available: false, message: "최소 2자 이상 입력해주세요." };
@@ -287,44 +287,68 @@ export async function checkUsernameAvailability(
 
   try {
     const key = trimmed.toLowerCase();
-    const usernameDocRef = doc(db, "usernames", key);
-    const snap = await getDoc(usernameDocRef);
+    
+    // 1. displayNames 컬렉션 확인
+    const displayNameDocRef = doc(db, "displayNames", key);
+    const snapDisplay = await getDoc(displayNameDocRef);
 
-    if (snap.exists()) {
-      const data = snap.data();
+    if (snapDisplay.exists()) {
+      const data = snapDisplay.data();
       if (currentUid && data.uid === currentUid) {
-        return { available: true, message: "현재 사용 중인 본인의 Username입니다." };
+        return { available: true, message: "현재 사용 중인 본인의 고유 주소 ID입니다." };
       }
-      return { available: false, message: "이미 다른 사용자가 사용 중인 Username입니다." };
+      return { available: false, message: "이미 다른 사용자가 사용 중인 주소 ID입니다." };
     }
 
-    return { available: true, message: "사용 가능한 Display Name(Username)입니다! 🎉" };
+    // 2. 기존 usernames 컬렉션도 확인 (중복 방지)
+    const usernameDocRef = doc(db, "usernames", key);
+    const snapUser = await getDoc(usernameDocRef);
+
+    if (snapUser.exists()) {
+      const data = snapUser.data();
+      if (currentUid && data.uid === currentUid) {
+        return { available: true, message: "현재 사용 중인 본인의 고유 주소 ID입니다." };
+      }
+      return { available: false, message: "이미 다른 사용자가 사용 중인 주소 ID입니다." };
+    }
+
+    return { available: true, message: "사용 가능한 고유 주소 ID입니다! 🎉" };
   } catch (error) {
-    console.error("Username 중복 검사 실패:", error);
+    console.error("Display Name 중복 검사 실패:", error);
     return { available: false, message: "중복 확인 중 네트워크 오류가 발생했습니다." };
   }
 }
 
+// 하위 호환성을 위한 별칭 export
+export const checkUsernameAvailability = checkDisplayNameAvailability;
+
 /**
- * 사용자 별명(Username) 수정 저장 함수
- * - users/{userid}/profile 및 users/{userid}에 별명 업데이트
+ * 사용자 프로필 (별명 Username 및 고유 주소 ID Display Name) 수정 저장 함수
+ * - users/{userid}/profile 및 users/{userid}에 업데이트
+ * - displayName 변경 시 이전 displayNames 색인 문서 삭제 및 신규 색인 생성
  */
 export async function saveUserProfile(
   uid: string,
   updates: {
     username: string;
+    displayName: string;
     name?: string;
-  }
+  },
+  previousDisplayName?: string
 ): Promise<void> {
   const now = new Date().toISOString();
   const cleanUsername = updates.username.trim();
+  const cleanDisplayName = updates.displayName.trim();
+  const lowerNew = cleanDisplayName.toLowerCase();
+  const lowerPrev = previousDisplayName ? previousDisplayName.trim().toLowerCase() : "";
 
-  // 1. users/{uid}/profile/info 서브컬렉션 문서 업데이트 (사용자 요청: users/{userid}/profile)
+  // 1. users/{uid}/profile/info 서브컬렉션 문서 업데이트 (사용자 지정 경로: users/{userid}/profile)
   const subProfileRef = doc(db, "users", uid, "profile", "info");
   await setDoc(
     subProfileRef,
     {
       username: cleanUsername,
+      displayName: cleanDisplayName,
       name: cleanUsername,
       updatedAt: now,
     },
@@ -337,11 +361,46 @@ export async function saveUserProfile(
     userDocRef,
     {
       username: cleanUsername,
+      displayName: cleanDisplayName,
       name: cleanUsername,
       updatedAt: now,
     },
     { merge: true }
   );
+
+  // 3. displayName이 변경된 경우 이전 색인 문서 정리
+  if (lowerPrev && lowerPrev !== lowerNew) {
+    try {
+      await deleteDoc(doc(db, "displayNames", lowerPrev));
+      await deleteDoc(doc(db, "usernames", lowerPrev));
+    } catch {
+      // 이전 키 삭제 실패 무시
+    }
+  }
+
+  // 4. 신규 displayNames 색인 문서 등록
+  try {
+    await setDoc(
+      doc(db, "displayNames", lowerNew),
+      {
+        uid,
+        displayName: cleanDisplayName,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+    await setDoc(
+      doc(db, "usernames", lowerNew),
+      {
+        uid,
+        username: cleanDisplayName,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("displayNames 색인 저장 예외:", e);
+  }
 }
 
 /**

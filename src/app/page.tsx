@@ -246,15 +246,16 @@ export default function HomePage() {
     }
   };
 
-  // 프로필 정보 (별명 Username) 수정 및 users/{userid}/profile 저장 핸들러 (TanStack useMutation)
-  const handleSaveProfile = async (updates: { username: string; name?: string }) => {
+  // 프로필 정보 (별명 Username & 고유 주소 Display Name) 수정 및 users/{userid}/profile 저장 핸들러
+  const handleSaveProfile = async (updates: { username: string; displayName: string }) => {
     if (!currentUser) return;
     try {
       await saveProfileMutation.mutateAsync({
         username: updates.username,
-        name: updates.name,
+        displayName: updates.displayName,
+        previousDisplayName: userProfile?.displayName,
       });
-      triggerToast("별명이 성공적으로 변경되었습니다! ✨");
+      triggerToast("프로필 정보가 성공적으로 변경되었습니다! ✨");
     } catch (error) {
       console.error("프로필 수정 실패:", error);
       triggerToast("프로필 수정에 실패했습니다. 다시 시도해주세요.");

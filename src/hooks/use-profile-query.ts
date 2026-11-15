@@ -26,7 +26,7 @@ export function useProfileQuery(uid?: string | null) {
 }
 
 /**
- * 프로필 (별명 Username) 수정 및 users/{userid}/profile 저장 뮤테이션
+ * 프로필 (별명 Username & 고유 주소 ID Display Name) 수정 및 users/{userid}/profile 저장 뮤테이션
  */
 export function useSaveProfileMutation(uid?: string | null) {
   const queryClient = useQueryClient();
@@ -34,20 +34,26 @@ export function useSaveProfileMutation(uid?: string | null) {
   return useMutation({
     mutationFn: async ({
       username,
-      name,
+      displayName,
+      previousDisplayName,
     }: {
       username: string;
-      name?: string;
+      displayName: string;
+      previousDisplayName?: string;
     }) => {
       if (!uid) throw new Error("로그인이 필요합니다.");
-      await saveUserProfile(uid, { username, name });
-      return { username, name: username };
+      await saveUserProfile(
+        uid,
+        { username, displayName, name: username },
+        previousDisplayName
+      );
+      return { username, displayName, name: username };
     },
     onSuccess: (updated) => {
       // 프로필 캐시 즉시 업데이트
       queryClient.setQueryData<UserProfile | null>(
         PROFILE_QUERY_KEY(uid),
-        (prev) => (prev ? { ...prev, username: updated.username, name: updated.username } : null)
+        (prev) => (prev ? { ...prev, ...updated } : null)
       );
       queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY(uid) });
     },
