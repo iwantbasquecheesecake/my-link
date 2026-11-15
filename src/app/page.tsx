@@ -87,6 +87,17 @@ export default function HomePage() {
     }, 2800);
   }, []);
 
+  // 브라우저 탭 타이틀 동적 설정
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      if (currentUser && userProfile) {
+        document.title = `${userProfile.username || "마이페이지"} | MyLink 관리`;
+      } else {
+        document.title = "MyLink | 나만의 프로필 링크 모음";
+      }
+    }
+  }, [currentUser, userProfile]);
+
   // Firebase Auth 실시간 인증 상태 감시
   useEffect(() => {
     let isMounted = true;

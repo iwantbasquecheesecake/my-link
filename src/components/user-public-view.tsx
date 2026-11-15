@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Share2, Check, ExternalLink, Sparkles, Home } from "lucide-react";
 import { LinkItem, ProfileConfig } from "@/types/mylink";
@@ -32,6 +32,16 @@ export function UserPublicView({ initialUser, initialLinks }: UserPublicViewProp
   const incrementClickMutation = useIncrementClickMutation(initialUser.uid);
 
   const activeUser = userProfile || initialUser;
+
+  // 브라우저 탭 타이틀 동적 설정 (예: "임나린 (@narin31005) | MyLink")
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const name = activeUser.username || activeUser.name;
+      const id = activeUser.displayName ? `@${activeUser.displayName}` : "";
+      const displayTitle = name && id ? `${name} (${id})` : name || id || "프로필";
+      document.title = `${displayTitle} | MyLink`;
+    }
+  }, [activeUser]);
 
   // 토스트 알림 표시 헬퍼
   const triggerToast = useCallback((msg: string) => {

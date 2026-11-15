@@ -3,8 +3,8 @@ import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
 
 export const metadata: Metadata = {
-  title: "사용자 이름 | 마이링크 (MyLink)",
-  description: "바이브코딩을 탐구하는 초보 개발자 OOO의 마이페이지 (MyLink)",
+  title: "MyLink | 나만의 프로필 링크 모음",
+  description: "나만의 링크와 프로필을 한곳에서 자유롭게 관리하고 공유하는 MyLink 서비스입니다.",
 };
 
 export default function RootLayout({
