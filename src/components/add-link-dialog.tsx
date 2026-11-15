@@ -78,7 +78,10 @@ export function AddLinkDialog({
       title: "",
       url: "",
       subtitle: "",
-      category: existingCategories[0] || "코드 저장소",
+      category:
+        existingCategories.find((c) => c && c !== "전체") ||
+        DEFAULT_CATEGORIES[0] ||
+        "코드 저장소",
       iconName: "ExternalLink",
       badge: "",
       isVisible: true,
@@ -102,7 +105,10 @@ export function AddLinkDialog({
         title: "",
         url: "",
         subtitle: "",
-        category: existingCategories[0] || "코드 저장소",
+        category:
+        existingCategories.find((c) => c && c !== "전체") ||
+        DEFAULT_CATEGORIES[0] ||
+        "코드 저장소",
         iconName: "ExternalLink",
         badge: "",
         isVisible: true,

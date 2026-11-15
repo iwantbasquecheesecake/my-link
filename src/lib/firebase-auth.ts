@@ -78,7 +78,8 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
       uid: user.uid,
       name: emailDisplayName,
       email: data.email || user.email || "",
-      photoURL: data.photoURL || user.photoURL || "",
+      // 구글 계정 프로필 사진으로 항상 통일 및 최신 동기화
+      photoURL: user.photoURL || data.photoURL || "",
       role: data.role || "MyLink 크리에이터",
       statusBadge: data.statusBadge || "온라인",
       bio: data.bio || "환영합니다! 나만의 링크를 자유롭게 공유하고 관리해보세요.",
@@ -90,7 +91,7 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
       userDocRef,
       {
         lastLoginAt: now,
-        // display name은 이메일 앞부분으로 동기화
+        // display name은 이메일 앞부분으로 동기화, 사진은 구글 프로필로 동기화
         name: profile.name,
         email: profile.email,
         photoURL: profile.photoURL,
@@ -131,4 +132,15 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     console.warn("Firestore users/{uid} 조회 실패:", error);
     return null;
   }
+}
+
+/**
+ * Firestore users/{uid} 문서의 프로필 정보(bio, photoURL 등) 부분 업데이트
+ */
+export async function updateUserProfileData(
+  uid: string,
+  updates: Partial<Pick<UserProfile, "bio" | "photoURL" | "name" | "role" | "statusBadge">>
+): Promise<void> {
+  const userDocRef = doc(db, "users", uid);
+  await setDoc(userDocRef, updates, { merge: true });
 }

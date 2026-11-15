@@ -20,6 +20,7 @@ import {
   logoutUser,
   subscribeToAuth,
   getUserProfile,
+  updateUserProfileData,
   type UserProfile,
 } from "@/lib/firebase-auth";
 import { ProfileHeader } from "@/components/profile-header";
@@ -57,13 +58,17 @@ export default function HomePage() {
   // 활성 사용자 ID (로그인 시 user.uid, 비로그인 시 anonymous)
   const activeUserId = currentUser ? currentUser.uid : "anonymous";
 
-  // 토스트 메시지 헬퍼
+  // 토스트 메시지 헬퍼 (Sonner 스타일 중앙 상단 알림)
+  const toastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const triggerToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToastMessage(msg);
     setShowToast(true);
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setShowToast(false);
-    }, 2500);
+    }, 2800);
   }, []);
 
   // 1. Firebase Auth 실시간 인증 상태 감시
@@ -249,6 +254,37 @@ export default function HomePage() {
     }
   };
 
+  // 프로필 정보(자기소개 말풍선, 프로필 사진 등) 업데이트 핸들러
+  const handleUpdateProfile = async (
+    updates: Partial<Pick<UserProfile, "bio" | "photoURL" | "name" | "role">>
+  ) => {
+    if (!currentUser) return;
+    try {
+      await updateUserProfileData(currentUser.uid, updates);
+      setUserProfile((prev) => (prev ? { ...prev, ...updates } : null));
+
+      // 변경 항목별 알림 메시지
+      if (typeof updates.bio === "string") {
+        if (updates.bio === "") {
+          triggerToast("자기소개 말풍선이 삭제되었습니다.");
+        } else {
+          triggerToast("자기소개 말풍선이 저장되었습니다! ✨");
+        }
+      } else if (typeof updates.photoURL === "string") {
+        if (updates.photoURL === "") {
+          triggerToast("프로필 사진이 기본 이미지로 초기화되었습니다.");
+        } else {
+          triggerToast("프로필 사진이 성공적으로 변경되었습니다! 📷");
+        }
+      } else {
+        triggerToast("프로필이 업데이트되었습니다.");
+      }
+    } catch (error) {
+      console.error("프로필 정보 업데이트 실패:", error);
+      triggerToast("프로필 업데이트에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
   // 링크 공유하기 (URL 복사)
   const handleShare = async () => {
     try {
@@ -430,28 +466,38 @@ export default function HomePage() {
     setIsAddLinkOpen(true);
   };
 
-  // 활성(노출) 링크 필터링 (isVisible === true)
+  // 활성(노출) 링크 필터링 (isVisible === true) 및 카테고리 정규화 ("전체" ➔ "일반")
   const visibleLinks = useMemo(() => {
     const active = data.links.filter((l) => l.isVisible);
-    return sortByCreatedAtDesc(active);
+    const normalized = active.map((l) => {
+      if (l.category?.trim() === "전체") {
+        return { ...l, category: "일반" };
+      }
+      return l;
+    });
+    return sortByCreatedAtDesc(normalized);
   }, [data.links]);
 
-  // 등록된 카테고리 목록 추출
+  // 등록된 카테고리 목록 추출 ("전체" 메타 탭 중복 방지)
   const categories = useMemo(() => {
     const catSet = new Set<string>();
     visibleLinks.forEach((link) => {
-      if (link.category) catSet.add(link.category);
+      const cat = link.category?.trim();
+      if (cat && cat !== "전체") catSet.add(cat);
     });
     return ["전체", ...Array.from(catSet)];
   }, [visibleLinks]);
 
-  // 카테고리별 링크 개수 계산
+  // 카테고리별 링크 개수 계산 ("전체"는 총 활성 링크 개수로 유지)
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {
       전체: visibleLinks.length,
     };
     visibleLinks.forEach((link) => {
-      counts[link.category] = (counts[link.category] || 0) + 1;
+      const cat = link.category?.trim();
+      if (cat && cat !== "전체") {
+        counts[cat] = (counts[cat] || 0) + 1;
+      }
     });
     return counts;
   }, [visibleLinks]);
@@ -585,17 +631,21 @@ export default function HomePage() {
             <SkillsCard />
           </>
         ) : (
-          /* 로그인 상태: 1. 프로필 -> 2. 카테고리/링크 목록 -> 3. 역량 요약 순서 */
+          /* 로그인 상태: 1. 프로필 -> 2. Focus & Skills -> 3. 카테고리/링크 목록 */
           <>
-            {/* 1. 프로필 헤더 카드 (로그인 시 구글 유저 정보 연동) */}
+            {/* 1. 프로필 헤더 카드 (로그인 시 구글 유저 정보 연동 및 사진/말풍선 수정·삭제 지원) */}
             <ProfileHeader
               profile={data.profile}
               userProfile={userProfile}
               isLoggedIn={true}
               onSecretTrigger={() => setIsAdminModalOpen(true)}
+              onUpdateProfile={handleUpdateProfile}
             />
 
-            {/* 2. 카테고리 탭 필터 */}
+            {/* 2. Focus & Skills 카드 (프로필 바로 밑 배치) */}
+            <SkillsCard />
+
+            {/* 3. 카테고리 탭 필터 */}
             <section aria-label="링크 카테고리 필터">
               <CategoryTabs
                 categories={categories}
@@ -605,7 +655,7 @@ export default function HomePage() {
               />
             </section>
 
-            {/* 링크 목록 섹션 */}
+            {/* 4. 링크 목록 섹션 */}
             <section className="space-y-3" aria-label="링크 카드 목록">
               <div className="flex items-center justify-between px-1">
                 <h2 className="text-base sm:text-lg font-bold text-[#1E3024] dark:text-[#F4FBF4] flex items-center gap-1.5">
@@ -686,9 +736,6 @@ export default function HomePage() {
                 </div>
               )}
             </section>
-
-            {/* 3. 프로필 스킬 & 역량 요약 카드 */}
-            <SkillsCard />
           </>
         )}
 
@@ -753,8 +800,12 @@ export default function HomePage() {
         onOpenAddLink={handleTriggerAddLink}
       />
 
-      {/* 토스트 알림 메시지 */}
-      <Toast message={toastMessage} visible={showToast} />
+      {/* Sonner 스타일 중앙 상단 토스트 알림 메시지 */}
+      <Toast
+        message={toastMessage}
+        visible={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 }

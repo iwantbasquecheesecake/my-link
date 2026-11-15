@@ -82,6 +82,9 @@ export const linkFormSchema = z.object({
     .min(1, { message: "카테고리를 입력하거나 선택해주세요." })
     .max(LIMITS.CATEGORY_MAX, {
       message: `카테고리는 최대 ${LIMITS.CATEGORY_MAX}자까지 입력 가능합니다.`,
+    })
+    .refine((val) => val !== "전체", {
+      message: "'전체'는 시스템 기본 탭 이름이므로 카테고리로 사용할 수 없습니다.",
     }),
   iconName: z.string(),
   badge: z
