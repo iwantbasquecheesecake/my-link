@@ -27,7 +27,7 @@ interface ProfileHeaderProps {
   onUpdateProfile?: (
     updates: Partial<Pick<UserProfile, "bio" | "name" | "role">>
   ) => Promise<void> | void;
-  onSaveProfile?: (data: { username: string; name: string }) => Promise<void>;
+  onSaveProfile?: (data: { username: string; name?: string }) => Promise<void>;
 }
 
 export function ProfileHeader({
@@ -68,10 +68,14 @@ export function ProfileHeader({
   // 로그인 사용자 또는 전달된 userProfile 정보 우선 적용
   const currentEmail = userProfile?.email || profile.email;
   const emailPrefix = currentEmail ? currentEmail.split("@")[0] : "user";
+
+  // displayName: 가입 시 이메일 앞부분 기반 고유 URL 식별자 (예: narin31005)
+  const currentDisplayName =
+    userProfile?.displayName || (isLoggedIn ? emailPrefix : (profile.englishName || "user"));
+
+  // username: 사용자가 자유롭게 바꿀 수 있는 별명(닉네임) (예: 나린, 아무개)
   const currentUsername =
-    userProfile?.username || (isLoggedIn ? emailPrefix : (profile.englishName || "User Name"));
-  const currentName =
-    userProfile?.name || (isLoggedIn ? "사용자 이름" : profile.name);
+    userProfile?.username || userProfile?.name || (isLoggedIn ? emailPrefix : profile.name);
 
   // 프로필 사진: 구글 계정 프로필 사진(photoURL) 우선, 없으면 기본 avatarUrl
   const currentAvatarUrl = userProfile?.photoURL || profile.avatarUrl;
@@ -221,15 +225,15 @@ export function ProfileHeader({
               onClick={handleAvatarClick}
               className="rounded-full border border-border/80 hover:border-[#4D6E56] transition-transform duration-300 active:scale-95 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#4D6E56]"
               title="프로필 사진 (구글 계정 프로필)"
-              aria-label={`${currentName} 프로필 사진`}
+              aria-label={`${currentUsername} 프로필 사진`}
             >
               <Avatar size="xl">
                 <AvatarImage
                   src={currentAvatarUrl || "/avatar.svg"}
-                  alt={currentName}
+                  alt={currentUsername}
                   priority
                 />
-                <AvatarFallback>{currentName.slice(0, 2)}</AvatarFallback>
+                <AvatarFallback>{currentUsername.slice(0, 2)}</AvatarFallback>
               </Avatar>
             </button>
             <span
@@ -243,29 +247,24 @@ export function ProfileHeader({
 
           {/* 프로필 정보 */}
           <div className="flex-1 min-w-0 flex flex-col justify-center">
-            {/* 이름, Username & 프로필 수정 버튼 */}
+            {/* 1. 메인: 사용자가 설정한 별명 (Username) & 프로필 수정 버튼 */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-1.5">
-                <span>{currentName}</span>
+                <span>{currentUsername}</span>
                 {isLoggedIn && (
                   <span title="Google 인증 완료 계정" className="inline-flex text-[#4D6E56]">
                     <CheckCircle2 className="w-4 h-4 ml-0.5" />
                   </span>
                 )}
-                {!isLoggedIn && (
-                  <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-1">
-                    {profile.englishName || "User Name"}
-                  </span>
-                )}
               </h1>
 
-              {/* 로그인 상태 전용 프로필 정보(Username, 이름) 수정 버튼 */}
+              {/* 로그인 상태 전용 프로필 정보(별명) 수정 버튼 */}
               {isLoggedIn && onSaveProfile && (
                 <button
                   type="button"
                   onClick={() => setIsEditProfileOpen(true)}
                   className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold text-[#4D6E56] bg-[#4D6E56]/10 hover:bg-[#4D6E56] hover:text-[#F4FBF4] border border-[#4D6E56]/25 transition-all cursor-pointer shadow-2xs active:scale-95"
-                  title="Username 및 이름 수정"
+                  title="별명(Username) 수정"
                 >
                   <Pencil className="w-2.5 h-2.5 stroke-[2.2]" />
                   <span>프로필 수정</span>
@@ -273,10 +272,10 @@ export function ProfileHeader({
               )}
             </div>
 
-            {/* Display Name (Username) */}
-            {isLoggedIn && currentUsername && (
+            {/* 2. 서브: 고유 주소 ID (Display Name) */}
+            {currentDisplayName && (
               <p className="text-xs sm:text-[13px] font-semibold text-muted-foreground flex items-center justify-center sm:justify-start gap-1 mt-0.5">
-                <span className="text-[#4D6E56] dark:text-[#8FA594]">@{currentUsername}</span>
+                <span className="text-[#4D6E56] dark:text-[#8FA594] font-mono">@{currentDisplayName}</span>
               </p>
             )}
 
@@ -366,14 +365,14 @@ export function ProfileHeader({
         onConfirm={handleConfirmDeleteBio}
       />
 
-      {/* 프로필 정보 (Username, 이름) 수정 모달 */}
+      {/* 프로필 정보 (별명 Username) 수정 모달 */}
       {isLoggedIn && onSaveProfile && userProfile && (
         <EditProfileModal
           isOpen={isEditProfileOpen}
           onClose={() => setIsEditProfileOpen(false)}
           currentUsername={userProfile.username || emailPrefix}
-          currentName={userProfile.name || currentName}
-          currentUid={userProfile.uid}
+          currentDisplayName={userProfile.displayName || emailPrefix}
+          currentEmail={currentEmail}
           onSave={onSaveProfile}
         />
       )}

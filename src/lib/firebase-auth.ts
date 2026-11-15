@@ -22,8 +22,9 @@ import { auth, db } from "@/lib/firebase";
 
 export interface UserProfile {
   uid: string;
-  name: string;        // 성명 / 표시 이름
-  username?: string;    // 고유 Display Name (Username)
+  displayName: string;  // 고유 식별자 / URL 슬러그 (가입 시 이메일 앞부분으로 자동 할당, 변경 불가)
+  username: string;     // 사용자 변경 가능한 별명 (닉네임)
+  name?: string;        // 기존 호환성 유지 필드 (username과 동일)
   email: string;
   photoURL?: string;
   role?: string;
@@ -75,12 +76,16 @@ export function getEmailDisplayName(email?: string | null, fallback = "사용자
 
 /**
  * Google 로그인 성공 시 Firestore users/{user.uid} 문서에 유저 정보 동기화
+ * - displayName: 가입 시 이메일 주소 앞부분으로 자동 할당 (동적 라우팅 /[displayName] 고유 주소)
+ * - username: 사용자가 언제든 변경할 수 있는 별명(닉네임)
  */
 export async function syncUserProfile(user: User): Promise<UserProfile> {
   const userDocRef = doc(db, "users", user.uid);
   const userSnapshot = await getDoc(userDocRef);
   const now = new Date().toISOString();
-  const emailDisplayName = getEmailDisplayName(user.email, user.displayName || "user");
+  
+  // 1. 이메일 앞부분 추출 -> displayName (고유 주소 ID)
+  const defaultDisplayName = getEmailDisplayName(user.email, user.uid);
 
   // users/{uid}/profile 서브컬렉션 문서도 확인
   const subProfileRef = doc(db, "users", user.uid, "profile", "info");
@@ -91,13 +96,19 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
 
   if (userSnapshot.exists() || subData) {
     const data = userSnapshot.exists() ? userSnapshot.data() : {};
-    const finalUsername = subData?.username || data.username || emailDisplayName;
-    const finalName = subData?.name || data.name || user.displayName || "사용자 이름";
+    
+    // displayName은 가입 시 이메일 앞부분(고정)
+    const finalDisplayName = data.displayName || subData?.displayName || defaultDisplayName;
+    
+    // username은 사용자가 변경 가능한 별명 (기존 저장된 별명 유지, 없으면 사용자 이름 또는 이메일 앞부분)
+    const finalUsername =
+      subData?.username || data.username || data.name || user.displayName || defaultDisplayName;
 
     profile = {
       uid: user.uid,
-      name: finalName,
+      displayName: finalDisplayName,
       username: finalUsername,
+      name: finalUsername,
       email: data.email || user.email || "",
       // 구글 계정 프로필 사진으로 항상 통일 및 최신 동기화
       photoURL: user.photoURL || data.photoURL || "",
@@ -113,29 +124,52 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
       userDocRef,
       {
         lastLoginAt: now,
-        name: profile.name,
+        displayName: profile.displayName,
         username: profile.username,
+        name: profile.username,
         email: profile.email,
         photoURL: profile.photoURL,
       },
       { merge: true }
     );
 
-    // 기본 username 레지스트리 확보
+    // users/{uid}/profile/info 에도 동기화
+    await setDoc(
+      subProfileRef,
+      {
+        displayName: profile.displayName,
+        username: profile.username,
+        name: profile.username,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+
+    // displayNames 및 usernames 고유 라우팅 레지스트리 확보
     try {
       await setDoc(
-        doc(db, "usernames", profile.username!.toLowerCase()),
-        { uid: user.uid, username: profile.username, updatedAt: now },
+        doc(db, "displayNames", profile.displayName.toLowerCase()),
+        { uid: user.uid, displayName: profile.displayName, email: profile.email, updatedAt: now },
+        { merge: true }
+      );
+      await setDoc(
+        doc(db, "usernames", profile.displayName.toLowerCase()),
+        { uid: user.uid, username: profile.displayName, updatedAt: now },
         { merge: true }
       );
     } catch (e) {
-      console.warn("기본 username 등록 예외:", e);
+      console.warn("기본 displayNames/usernames 등록 예외:", e);
     }
   } else {
+    // 신규 가입
+    const finalDisplayName = defaultDisplayName;
+    const finalUsername = user.displayName || defaultDisplayName;
+
     profile = {
       uid: user.uid,
-      name: user.displayName || "사용자 이름",
-      username: emailDisplayName,
+      displayName: finalDisplayName,
+      username: finalUsername,
+      name: finalUsername,
       email: user.email || "",
       photoURL: user.photoURL || "",
       role: "MyLink 크리에이터",
@@ -148,20 +182,30 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
     await setDoc(userDocRef, profile, { merge: true });
 
     // users/{uid}/profile 서브 경로에도 초기 저장
-    await setDoc(subProfileRef, {
-      username: profile.username,
-      name: profile.name,
-      updatedAt: now,
-    }, { merge: true });
+    await setDoc(
+      subProfileRef,
+      {
+        displayName: profile.displayName,
+        username: profile.username,
+        name: profile.username,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
 
     try {
       await setDoc(
-        doc(db, "usernames", profile.username!.toLowerCase()),
-        { uid: user.uid, username: profile.username, updatedAt: now },
+        doc(db, "displayNames", profile.displayName.toLowerCase()),
+        { uid: user.uid, displayName: profile.displayName, email: profile.email, updatedAt: now },
+        { merge: true }
+      );
+      await setDoc(
+        doc(db, "usernames", profile.displayName.toLowerCase()),
+        { uid: user.uid, username: profile.displayName, updatedAt: now },
         { merge: true }
       );
     } catch (e) {
-      console.warn("초기 username 등록 예외:", e);
+      console.warn("초기 displayNames 등록 예외:", e);
     }
   }
 
@@ -187,12 +231,18 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     }
 
     const mainData = mainSnap.exists() ? mainSnap.data() : {};
-    const emailDisplayName = getEmailDisplayName(mainData.email, "사용자");
+    const defaultDisplayName = getEmailDisplayName(mainData.email, "사용자");
+
+    const displayName =
+      subData?.displayName || mainData.displayName || defaultDisplayName;
+    const username =
+      subData?.username || mainData.username || subData?.name || mainData.name || defaultDisplayName;
 
     return {
       uid,
-      name: subData?.name || mainData.name || "사용자 이름",
-      username: subData?.username || mainData.username || emailDisplayName,
+      displayName,
+      username,
+      name: username,
       email: mainData.email || "",
       photoURL: mainData.photoURL || "",
       role: subData?.role || mainData.role || "MyLink 크리에이터",
@@ -256,21 +306,18 @@ export async function checkUsernameAvailability(
 }
 
 /**
- * 사용자 프로필 (Username, 이름) 저장 함수
- * - users/{userid}/profile 및 users/{userid}에 업데이트
- * - usernames 컬렉션 고유 인덱스 갱신
+ * 사용자 별명(Username) 수정 저장 함수
+ * - users/{userid}/profile 및 users/{userid}에 별명 업데이트
  */
 export async function saveUserProfile(
   uid: string,
   updates: {
     username: string;
-    name: string;
-  },
-  previousUsername?: string
+    name?: string;
+  }
 ): Promise<void> {
   const now = new Date().toISOString();
   const cleanUsername = updates.username.trim();
-  const cleanName = updates.name.trim();
 
   // 1. users/{uid}/profile/info 서브컬렉션 문서 업데이트 (사용자 요청: users/{userid}/profile)
   const subProfileRef = doc(db, "users", uid, "profile", "info");
@@ -278,7 +325,7 @@ export async function saveUserProfile(
     subProfileRef,
     {
       username: cleanUsername,
-      name: cleanName,
+      name: cleanUsername,
       updatedAt: now,
     },
     { merge: true }
@@ -290,26 +337,7 @@ export async function saveUserProfile(
     userDocRef,
     {
       username: cleanUsername,
-      name: cleanName,
-      updatedAt: now,
-    },
-    { merge: true }
-  );
-
-  // 3. usernames 고유 레지스트리 갱신
-  if (previousUsername && previousUsername.toLowerCase() !== cleanUsername.toLowerCase()) {
-    try {
-      await deleteDoc(doc(db, "usernames", previousUsername.toLowerCase()));
-    } catch {
-      // 이전 키 삭제 실패 무시
-    }
-  }
-
-  await setDoc(
-    doc(db, "usernames", cleanUsername.toLowerCase()),
-    {
-      uid,
-      username: cleanUsername,
+      name: cleanUsername,
       updatedAt: now,
     },
     { merge: true }
@@ -332,11 +360,12 @@ export async function updateUserProfileData(
 }
 
 /**
- * displayName (Username 또는 이름)으로 유저 프로필 조회
- * 1. usernames/{username} 고유 문서 조회
- * 2. users 컬렉션에서 username == displayName 조회
- * 3. users 컬렉션에서 name == displayName 조회
- * 4. uid 자체로 직접 일치 조회
+ * displayName (가입 시 이메일 앞부분 기반 고유 식별자)으로 유저 프로필 조회
+ * 1. displayNames/{displayName} 고유 문서 조회
+ * 2. users 컬렉션에서 displayName == clean 조회
+ * 3. (기존 데이터 호환) usernames/{displayName} 레지스트리 조회
+ * 4. (기존 데이터 호환) users 컬렉션에서 username == clean 조회
+ * 5. uid 자체로 직접 일치 조회
  */
 export async function getUserByDisplayName(displayName: string): Promise<UserProfile | null> {
   const clean = decodeURIComponent(displayName).trim();
@@ -344,7 +373,25 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
   const lower = clean.toLowerCase();
 
   try {
-    // 1. usernames 레지스트리 조회
+    // 1. displayNames 레지스트리 조회
+    const displayNameDoc = await getDoc(doc(db, "displayNames", lower));
+    if (displayNameDoc.exists()) {
+      const { uid } = displayNameDoc.data();
+      if (uid) {
+        return await getUserProfile(uid);
+      }
+    }
+
+    // 2. users 컬렉션에서 displayName 필드 매칭
+    const usersCol = collection(db, "users");
+    const qDisplayName = query(usersCol, where("displayName", "==", clean), limit(1));
+    const snapDisplayName = await getDocs(qDisplayName);
+    if (!snapDisplayName.empty) {
+      const userDoc = snapDisplayName.docs[0];
+      return await getUserProfile(userDoc.id);
+    }
+
+    // 3. (호환) usernames 레지스트리 조회
     const usernameDoc = await getDoc(doc(db, "usernames", lower));
     if (usernameDoc.exists()) {
       const { uid } = usernameDoc.data();
@@ -353,8 +400,7 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
       }
     }
 
-    // 2. users 컬렉션에서 username 필드 매칭
-    const usersCol = collection(db, "users");
+    // 4. (호환) users 컬렉션에서 username 필드 매칭
     const qUsername = query(usersCol, where("username", "==", clean), limit(1));
     const snapUsername = await getDocs(qUsername);
     if (!snapUsername.empty) {
@@ -362,15 +408,7 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
       return await getUserProfile(userDoc.id);
     }
 
-    // 3. users 컬렉션에서 name 필드 매칭
-    const qName = query(usersCol, where("name", "==", clean), limit(1));
-    const snapName = await getDocs(qName);
-    if (!snapName.empty) {
-      const userDoc = snapName.docs[0];
-      return await getUserProfile(userDoc.id);
-    }
-
-    // 4. uid 자체로 직접 일치하는 경우
+    // 5. uid 자체로 직접 일치하는 경우
     const directUser = await getUserProfile(clean);
     if (directUser) {
       return directUser;

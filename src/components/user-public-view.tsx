@@ -70,7 +70,7 @@ export function UserPublicView({ initialUser, initialLinks }: UserPublicViewProp
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${activeUser.name || activeUser.username}님의 MyLink`,
+          title: `${activeUser.username || activeUser.displayName}님의 MyLink`,
           text: activeUser.bio || "MyLink에서 링크들을 확인해보세요!",
           url: currentUrl,
         });
@@ -131,8 +131,8 @@ export function UserPublicView({ initialUser, initialLinks }: UserPublicViewProp
   const baseProfileConfig: ProfileConfig = useMemo(
     () => ({
       ...INITIAL_DATA.profile,
-      name: activeUser.name || "사용자 이름",
-      englishName: activeUser.username || "username",
+      name: activeUser.username || activeUser.name || "사용자",
+      englishName: activeUser.displayName || "user",
       role: activeUser.role || "MyLink 크리에이터",
       bio: activeUser.bio || "",
       avatarUrl: activeUser.photoURL || INITIAL_DATA.profile.avatarUrl,
@@ -251,7 +251,7 @@ export function UserPublicView({ initialUser, initialLinks }: UserPublicViewProp
         {/* 하단 푸터 */}
         <footer className="pt-10 pb-6 text-center border-t border-border/40">
           <p className="text-xs text-muted-foreground font-medium">
-            © {new Date().getFullYear()} {activeUser.name || activeUser.username} • Powered by{" "}
+            © {new Date().getFullYear()} {activeUser.username || activeUser.displayName} • Powered by{" "}
             <Link
               href="/"
               className="text-[#4D6E56] font-bold hover:underline"

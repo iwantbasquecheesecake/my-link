@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { User, CheckCircle2, AlertCircle, Loader2, AtSign, Check, X } from "lucide-react";
+import { User, Lock, Sparkles, Check, Globe, Copy, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,91 +10,55 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { checkUsernameAvailability } from "@/lib/firebase-auth";
 
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUsername: string;
-  currentName: string;
-  currentUid: string;
-  onSave: (data: { username: string; name: string }) => Promise<void>;
+  currentUsername: string; // 사용자가 변경 가능한 별명 (Username)
+  currentDisplayName: string; // 가입 시 이메일 앞부분 기반 고유 URL 식별자 (DisplayName)
+  currentEmail?: string;
+  onSave: (data: { username: string; name?: string }) => Promise<void>;
 }
 
 export function EditProfileModal({
   isOpen,
   onClose,
   currentUsername,
-  currentName,
-  currentUid,
+  currentDisplayName,
+  currentEmail,
   onSave,
 }: EditProfileModalProps) {
+  // 사용자가 변경 가능한 별명 (Username)
   const [username, setUsername] = useState(currentUsername);
-  const [name, setName] = useState(currentName);
-
-  // 중복 확인 상태: 'idle' | 'checking' | 'available' | 'unavailable'
-  const [checkStatus, setCheckStatus] = useState<
-    "idle" | "checking" | "available" | "unavailable"
-  >("idle");
-  const [checkMessage, setCheckMessage] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // 모달이 열릴 때 초기화
   useEffect(() => {
     if (isOpen) {
       setUsername(currentUsername || "");
-      setName(currentName || "");
-      setCheckStatus("available");
-      setCheckMessage("현재 사용 중인 본인의 Username입니다.");
       setFormError(null);
+      setCopied(false);
     }
-  }, [isOpen, currentUsername, currentName]);
+  }, [isOpen, currentUsername]);
 
-  // Username 입력값 변경 핸들러
+  // 별명 입력값 변경 핸들러
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.trim();
-    setUsername(val);
-    setFormError(null);
-
-    if (val.toLowerCase() === currentUsername.toLowerCase()) {
-      setCheckStatus("available");
-      setCheckMessage("현재 사용 중인 본인의 Username입니다.");
-    } else {
-      setCheckStatus("idle");
-      setCheckMessage("");
-    }
-  };
-
-  // 이름 입력값 변경 핸들러
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setName(e.target.value);
+    setUsername(e.target.value);
     setFormError(null);
   };
 
-  // 중복 확인 실행 핸들러
-  const handleCheckDuplicate = async () => {
-    if (!username.trim()) {
-      setCheckStatus("unavailable");
-      setCheckMessage("Username을 입력해주세요.");
-      return;
-    }
-
+  // 주소 URL 복사 핸들러
+  const handleCopyUrl = async () => {
+    if (typeof window === "undefined" || !currentDisplayName) return;
+    const profileUrl = `${window.location.origin}/${currentDisplayName}`;
     try {
-      setCheckStatus("checking");
-      setCheckMessage("중복 여부를 확인하는 중입니다...");
-      const result = await checkUsernameAvailability(username, currentUid);
-
-      if (result.available) {
-        setCheckStatus("available");
-        setCheckMessage(result.message);
-      } else {
-        setCheckStatus("unavailable");
-        setCheckMessage(result.message);
-      }
+      await navigator.clipboard.writeText(profileUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      setCheckStatus("unavailable");
-      setCheckMessage("중복 확인에 실패했습니다. 다시 시도해주세요.");
+      // 복사 실패 무시
     }
   };
 
@@ -104,26 +68,14 @@ export function EditProfileModal({
     setFormError(null);
 
     const cleanUsername = username.trim();
-    const cleanName = name.trim();
 
     if (!cleanUsername) {
-      setFormError("Username(Display Name)을 입력해주세요.");
+      setFormError("별명(Username)을 입력해주세요.");
       return;
     }
 
-    if (!cleanName) {
-      setFormError("이름을 입력해주세요.");
-      return;
-    }
-
-    if (cleanName.length < 2 || cleanName.length > 30) {
-      setFormError("이름은 2자 이상 30자 이하로 입력해주세요.");
-      return;
-    }
-
-    // Username이 변경되었는데 중복 확인을 통과하지 않은 경우
-    if (cleanUsername.toLowerCase() !== currentUsername.toLowerCase() && checkStatus !== "available") {
-      setFormError("Username 중복 확인을 먼저 완료해주세요.");
+    if (cleanUsername.length < 1 || cleanUsername.length > 30) {
+      setFormError("별명은 1자 이상 30자 이하로 입력해주세요.");
       return;
     }
 
@@ -131,7 +83,7 @@ export function EditProfileModal({
       setIsSubmitting(true);
       await onSave({
         username: cleanUsername,
-        name: cleanName,
+        name: cleanUsername,
       });
       onClose();
     } catch (error) {
@@ -142,15 +94,11 @@ export function EditProfileModal({
     }
   };
 
-  const isSaveDisabled =
-    isSubmitting ||
-    !name.trim() ||
-    !username.trim() ||
-    (username.trim().toLowerCase() !== currentUsername.toLowerCase() && checkStatus !== "available");
+  const isSaveDisabled = isSubmitting || !username.trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
-      <DialogContent onClose={onClose} className="sm:max-w-[440px] p-6">
+      <DialogContent onClose={onClose} className="sm:max-w-[460px] p-6">
         <DialogHeader className="text-left space-y-1.5">
           <div className="w-10 h-10 rounded-xl bg-[#D6E1D8]/60 dark:bg-[#1E3024] text-[#4D6E56] flex items-center justify-center shrink-0 mb-1">
             <User className="w-5 h-5 stroke-[2.2]" />
@@ -159,112 +107,105 @@ export function EditProfileModal({
             프로필 정보 수정
           </DialogTitle>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            마이페이지에 표시될 Username과 이름을 변경할 수 있습니다.
+            프로필에 노출될 별명(Username)과 고유 MyLink 주소(Display Name)를 확인하고 관리하세요.
           </p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {/* 1. Username (Display Name) 입력 및 중복 확인 */}
-          <div className="space-y-1.5">
+          {/* 1. 사용자가 자유롭게 변경할 수 있는 별명 (Username) */}
+          <div className="p-3.5 rounded-2xl bg-muted/40 border border-[#4D6E56]/30 dark:border-[#4D6E56]/40 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <AtSign className="w-3.5 h-3.5 text-[#4D6E56]" />
-                <span>Username (Display Name)</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <span className="text-[11px] text-muted-foreground">영문/숫자 2~20자</span>
-            </div>
-
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="예: narin31005"
-                value={username}
-                onChange={handleUsernameChange}
-                maxLength={20}
-                className="text-xs h-10 flex-1 font-medium"
-                autoFocus
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCheckDuplicate}
-                disabled={checkStatus === "checking" || !username.trim()}
-                className="h-10 px-3 text-xs font-bold text-[#4D6E56] border-[#4D6E56]/40 hover:bg-[#4D6E56] hover:text-[#F4FBF4] shrink-0 cursor-pointer transition-colors"
-              >
-                {checkStatus === "checking" ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                    <span>확인 중</span>
-                  </>
-                ) : (
-                  <span>중복 확인</span>
-                )}
-              </Button>
-            </div>
-
-            {/* 중복 확인 피드백 메시지 */}
-            {checkMessage && (
-              <div
-                className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 ${
-                  checkStatus === "available"
-                    ? "text-[#4D6E56] dark:text-[#8FA594]"
-                    : checkStatus === "unavailable"
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {checkStatus === "available" && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
-                {checkStatus === "unavailable" && <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
-                <span>{checkMessage}</span>
-              </div>
-            )}
-
-            {checkStatus === "idle" && username.trim().toLowerCase() !== currentUsername.toLowerCase() && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                ⚠️ Username이 변경되었습니다. 저장 전 중복 확인을 진행해주세요.
-              </p>
-            )}
-          </div>
-
-          {/* 2. 이름 (Name) 입력 */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <span>이름 (Name)</span>
-                <span className="text-red-500">*</span>
+              <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#4D6E56]" />
+                <span>내 별명 (Username)</span>
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-md bg-[#4D6E56]/15 text-[#4D6E56] text-[10px]">
+                  수정 가능
+                </span>
               </label>
               <span className="text-[11px] text-muted-foreground">최대 30자</span>
             </div>
 
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              프로필 카드 상단에 크게 표시되는 나만의 호칭/닉네임입니다. 언제든지 원하는 이름으로 바꿀 수 있어요.
+            </p>
+
             <Input
               type="text"
-              placeholder="예: 홍길동, 나린"
-              value={name}
-              onChange={handleNameChange}
+              placeholder="예: 나린, 아무개, 개발자 린"
+              value={username}
+              onChange={handleUsernameChange}
               maxLength={30}
-              className="text-xs h-10 font-medium"
+              className="text-xs h-10 font-medium bg-background"
+              autoFocus
             />
           </div>
 
-          {/* 폼 에러 메시지 */}
-          {formError && (
-            <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 font-medium">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>{formError}</span>
+          {/* 2. 가입 시 자동 설정된 고유 URL 주소 (Display Name) - 헷갈림 방지를 위한 명확한 구분 */}
+          <div className="p-3.5 rounded-2xl bg-muted/20 border border-border/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>고유 주소 ID (Display Name)</span>
+                <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] border border-border">
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>고유 URL • 변경 불가</span>
+                </span>
+              </label>
             </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              내 MyLink 공유 주소(<code>/{currentDisplayName}</code>)에 사용되는 고유 아이디입니다.
+              가입 시 이메일 아이디(<code>{currentEmail || `${currentDisplayName}@...`}</code>)로 자동 생성되며 고정됩니다.
+            </p>
+
+            {/* 고유 주소 미리보기 카드 & 복사 버튼 */}
+            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-background border border-border/70 text-xs">
+              <div className="flex items-center gap-1.5 min-w-0 text-muted-foreground">
+                <span className="text-[11px] font-mono select-none text-muted-foreground/70">
+                  mylink.com/
+                </span>
+                <span className="font-bold text-foreground font-mono truncate">
+                  {currentDisplayName}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCopyUrl}
+                className="shrink-0 inline-flex items-center gap-1 h-6 px-2 rounded-lg text-[11px] font-semibold text-[#4D6E56] hover:bg-[#4D6E56]/10 border border-[#4D6E56]/30 transition-colors cursor-pointer"
+                title="내 고유 주소 복사하기"
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-[#4D6E56]" />
+                    <span>복사됨!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>주소 복사</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* 에러 메시지 표시 */}
+          {formError && (
+            <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+              {formError}
+            </p>
           )}
 
-          {/* 저장 및 취소 버튼 */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/80">
+          {/* 하단 모달 액션 버튼 */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isSubmitting}
-              className="h-9 px-4 text-xs font-semibold cursor-pointer"
+              className="h-9 px-3.5 text-xs font-semibold rounded-xl"
             >
               취소
             </Button>
@@ -272,19 +213,9 @@ export function EditProfileModal({
               type="submit"
               size="sm"
               disabled={isSaveDisabled}
-              className="h-9 px-4 text-xs font-bold bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-9 px-4 text-xs font-bold bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-xl cursor-pointer shadow-xs disabled:opacity-50 transition-colors"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                  저장 중...
-                </>
-              ) : (
-                <>
-                  <Check className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
-                  저장하기
-                </>
-              )}
+              {isSubmitting ? "저장 중..." : "변경사항 저장"}
             </Button>
           </div>
         </form>
