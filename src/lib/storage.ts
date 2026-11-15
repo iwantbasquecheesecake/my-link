@@ -14,6 +14,36 @@ export function getStoredData(): MyLinkData {
     }
     const parsed = JSON.parse(raw) as MyLinkData;
 
+    // 프로필 정보 동기화 (홍길동 등 이전 정보 -> 이름, User Name, 바이브코딩 등으로 갱신)
+    if (parsed.profile) {
+      if (
+        parsed.profile.name === "김나린" ||
+        parsed.profile.name === "홍길동" ||
+        parsed.profile.name === "이름" ||
+        parsed.profile.role?.includes("공간정보") ||
+        parsed.profile.role?.includes("크리에이터") ||
+        parsed.profile.bio?.includes("공간 데이터") ||
+        parsed.profile.bio?.includes("김나린") ||
+        parsed.profile.bio?.includes("소중한 링크") ||
+        parsed.profile.email?.includes("narin") ||
+        parsed.profile.email?.includes("gildong") ||
+        parsed.profile.englishName === "Gildong Hong" ||
+        !parsed.profile.englishName
+      ) {
+        parsed.profile.name = INITIAL_DATA.profile.name;
+        parsed.profile.englishName = INITIAL_DATA.profile.englishName;
+        parsed.profile.role = INITIAL_DATA.profile.role;
+        parsed.profile.statusBadge = INITIAL_DATA.profile.statusBadge;
+        parsed.profile.bio = INITIAL_DATA.profile.bio;
+        parsed.profile.location = INITIAL_DATA.profile.location;
+        parsed.profile.email = INITIAL_DATA.profile.email;
+        if (parsed.profile.socials) {
+          parsed.profile.socials = INITIAL_DATA.profile.socials;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      }
+    }
+
     // 뱃지 색상 브랜드 통일화 (배경: 세이지 그린 #4D6E56 / 글자: #F4FBF4)
     if (parsed.links && Array.isArray(parsed.links)) {
       parsed.links = parsed.links.map((link) => ({
@@ -117,6 +147,31 @@ export function addStoredLink(
 
   saveStoredData(updatedData);
   return { updatedData, newLink };
+}
+
+export function updateStoredLink(
+  linkId: string,
+  updates: Partial<Omit<LinkItem, "id" | "clickCount" | "createdAt">>
+): MyLinkData {
+  const current = getStoredData();
+  const now = new Date().toISOString();
+  const updatedLinks = current.links.map((link) => {
+    if (link.id === linkId) {
+      return {
+        ...link,
+        ...updates,
+        updatedAt: now,
+      };
+    }
+    return link;
+  });
+
+  const updatedData: MyLinkData = {
+    ...current,
+    links: updatedLinks,
+  };
+  saveStoredData(updatedData);
+  return updatedData;
 }
 
 export function deleteStoredLink(linkId: string): MyLinkData {

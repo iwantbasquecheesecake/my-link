@@ -2,16 +2,26 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Share2, Check, Mail, Plus, RefreshCw, Loader2, Sparkles } from "lucide-react";
+import { type User } from "firebase/auth";
 import { MyLinkData, LinkItem } from "@/types/mylink";
 import { INITIAL_DATA } from "@/lib/constants";
-import { getStoredData, saveStoredData, incrementLinkClick, addStoredLink } from "@/lib/storage";
+import { getStoredData, saveStoredData, incrementLinkClick, addStoredLink, updateStoredLink, deleteStoredLink } from "@/lib/storage";
 import {
   addFirebaseLink,
   getFirebaseLinks,
   subscribeToFirebaseLinks,
   incrementFirebaseLinkClick,
+  updateFirebaseLink,
+  deleteFirebaseLink,
   sortByCreatedAtDesc,
 } from "@/lib/firebase-links";
+import {
+  loginWithGoogle,
+  logoutUser,
+  subscribeToAuth,
+  getUserProfile,
+  type UserProfile,
+} from "@/lib/firebase-auth";
 import { ProfileHeader } from "@/components/profile-header";
 import { CategoryTabs } from "@/components/category-tabs";
 import { LinkCard } from "@/components/link-card";
@@ -19,6 +29,9 @@ import { SkillsCard } from "@/components/skills-card";
 import { Toast } from "@/components/toast";
 import { AdminModal } from "@/components/admin-modal";
 import { AddLinkDialog } from "@/components/add-link-dialog";
+import { DeleteLinkModal } from "@/components/delete-link-modal";
+import { GoogleAuthButton } from "@/components/google-auth-button";
+import { UnauthenticatedHero } from "@/components/unauthenticated-hero";
 import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
@@ -32,106 +45,49 @@ export default function HomePage() {
   const [showToast, setShowToast] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isAddLinkOpen, setIsAddLinkOpen] = useState<boolean>(false);
+  const [targetDeleteLink, setTargetDeleteLink] = useState<LinkItem | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
 
-  // Firestore (users/anonymous/links)에서 링크 불러오기 (createdAt 최신순 정렬)
-  const fetchLinksFromFirestore = useCallback(async (isSilent = false) => {
-    try {
-      if (!isSilent) setIsLoadingLinks(true);
-      const firebaseLinks = await getFirebaseLinks();
+  // Firebase Auth 사용자 상태 및 프로필 정보
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isAuthActionLoading, setIsAuthActionLoading] = useState<boolean>(false);
 
-      if (firebaseLinks.length > 0) {
-        setData((prev) => {
-          // Firestore 링크 최우선 반영 및 중복 제거
-          const nonFirebaseLinks = prev.links.filter(
-            (localLink) => !firebaseLinks.some((fbLink) => fbLink.id === localLink.id)
-          );
-          // createdAt 기준 최신순 정렬 (내림차순)
-          const merged = sortByCreatedAtDesc([...firebaseLinks, ...nonFirebaseLinks]);
-          const updatedData: MyLinkData = {
-            ...prev,
-            links: merged,
-          };
-          saveStoredData(updatedData);
-          return updatedData;
-        });
-      }
-    } catch (error) {
-      console.warn("Firestore 링크 로드 실패 (로컬 캐시 유지):", error);
-    } finally {
-      setIsLoadingLinks(false);
-    }
+  // 활성 사용자 ID (로그인 시 user.uid, 비로그인 시 anonymous)
+  const activeUserId = currentUser ? currentUser.uid : "anonymous";
+
+  // 토스트 메시지 헬퍼
+  const triggerToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 2500);
   }, []);
 
-  // 1. 클라이언트 마운트 시 localStorage 복원 및 Firestore (users/anonymous/links) 링크 불러오기
+  // 1. Firebase Auth 실시간 인증 상태 감시
   useEffect(() => {
     let isMounted = true;
+    setIsAuthLoading(true);
 
-    // 1-1. 로컬 캐시 데이터 우선 로드 (Zero-flicker UI)
-    const stored = getStoredData();
-    // 로컬 데이터도 createdAt 기준 최신순으로 정렬
-    const sortedStored: MyLinkData = {
-      ...stored,
-      links: sortByCreatedAtDesc(stored.links || []),
-    };
-    setData(sortedStored);
-    setIsLoaded(true);
+    const unsubscribe = subscribeToAuth(async (user) => {
+      if (!isMounted) return;
+      setCurrentUser(user);
 
-    // 1-2. 페이지 로드 시 Firestore (users/anonymous/links)에서 링크 불러오기 (createdAt 기준 최신순)
-    const initLoad = async () => {
-      try {
-        setIsLoadingLinks(true);
-        const firebaseLinks = await getFirebaseLinks();
-        if (!isMounted) return;
-
-        if (firebaseLinks.length > 0) {
-          setData((prev) => {
-            const nonFirebaseLinks = prev.links.filter(
-              (localLink) => !firebaseLinks.some((fbLink) => fbLink.id === localLink.id)
-            );
-            const merged = sortByCreatedAtDesc([...firebaseLinks, ...nonFirebaseLinks]);
-            const updatedData: MyLinkData = {
-              ...prev,
-              links: merged,
-            };
-            saveStoredData(updatedData);
-            return updatedData;
-          });
+      if (user) {
+        // users/{user.uid} 프로필 정보 로드
+        try {
+          const profile = await getUserProfile(user.uid);
+          if (isMounted) setUserProfile(profile);
+        } catch (error) {
+          console.warn("프로필 조회 예외:", error);
         }
-      } catch (error) {
-        console.warn("페이지 로드 시 Firestore 링크 조회 에러:", error);
-      } finally {
-        if (isMounted) {
-          setIsLoadingLinks(false);
-        }
+      } else {
+        setUserProfile(null);
       }
-    };
-
-    initLoad();
-
-    // 1-3. Firebase Firestore (users/anonymous/links) 실시간 구독 (생성/수정/삭제 시 createdAt 최신순 자동 반영)
-    const unsubscribe = subscribeToFirebaseLinks(
-      (firebaseLinks) => {
-        if (!isMounted) return;
-        if (firebaseLinks.length > 0) {
-          setData((prev) => {
-            const nonFirebaseLinks = prev.links.filter(
-              (localLink) => !firebaseLinks.some((fbLink) => fbLink.id === localLink.id)
-            );
-            const merged = sortByCreatedAtDesc([...firebaseLinks, ...nonFirebaseLinks]);
-            const updatedData: MyLinkData = {
-              ...prev,
-              links: merged,
-            };
-            saveStoredData(updatedData);
-            return updatedData;
-          });
-          setIsLoadingLinks(false);
-        }
-      },
-      (error) => {
-        console.warn("Firebase Firestore 실시간 구독 안내:", error);
-      }
-    );
+      setIsAuthLoading(false);
+    });
 
     return () => {
       isMounted = false;
@@ -139,7 +95,106 @@ export default function HomePage() {
     };
   }, []);
 
-  // 2. 단축키(Ctrl+Shift+A / Cmd+Shift+A) 리스너로 히든 관리자 모달 호출
+  // Firestore (users/{user.uid}/links)에서 링크 불러오기
+  const fetchLinksFromFirestore = useCallback(async (isSilent = false, targetUid?: string) => {
+    const uid = targetUid || (currentUser ? currentUser.uid : "anonymous");
+    try {
+      if (!isSilent) setIsLoadingLinks(true);
+      const firebaseLinks = await getFirebaseLinks(uid);
+
+      setData((prev) => {
+        // Firestore 링크 우선 반영
+        const nonFirebaseLinks = prev.links.filter(
+          (localLink) => !firebaseLinks.some((fbLink) => fbLink.id === localLink.id)
+        );
+        const merged = sortByCreatedAtDesc([...firebaseLinks, ...nonFirebaseLinks]);
+        const updatedData: MyLinkData = {
+          ...prev,
+          links: merged,
+        };
+        saveStoredData(updatedData);
+        return updatedData;
+      });
+    } catch (error) {
+      console.warn("Firestore 링크 로드 실패 (로컬 캐시 유지):", error);
+    } finally {
+      setIsLoadingLinks(false);
+    }
+  }, [currentUser]);
+
+  // 2. 로그인 상태 변화 시 Firestore (users/{user.uid}/links) 실시간 구독 연동
+  useEffect(() => {
+    let isMounted = true;
+    const uid = currentUser ? currentUser.uid : null;
+
+    // 비로그인 상태일 때는 Firestore 구독 중단
+    if (!uid) {
+      setIsLoadingLinks(false);
+      return;
+    }
+
+    setIsLoadingLinks(true);
+
+    // 2-1. 초기 1회 로드
+    getFirebaseLinks(uid)
+      .then((firebaseLinks) => {
+        if (!isMounted) return;
+        setData((prev) => {
+          const merged = sortByCreatedAtDesc(firebaseLinks);
+          const updatedData: MyLinkData = {
+            ...prev,
+            links: merged,
+          };
+          saveStoredData(updatedData);
+          return updatedData;
+        });
+      })
+      .catch((err) => {
+        console.warn("사용자 링크 로드 실패:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingLinks(false);
+      });
+
+    // 2-2. Firestore users/{uid}/links 실시간 구독
+    const unsubscribeLinks = subscribeToFirebaseLinks(
+      uid,
+      (firebaseLinks) => {
+        if (!isMounted) return;
+        setData((prev) => {
+          const merged = sortByCreatedAtDesc(firebaseLinks);
+          const updatedData: MyLinkData = {
+            ...prev,
+            links: merged,
+          };
+          saveStoredData(updatedData);
+          return updatedData;
+        });
+        setIsLoadingLinks(false);
+      },
+      (error) => {
+        console.warn("사용자 링크 실시간 구독 안내:", error);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribeLinks();
+    };
+  }, [currentUser]);
+
+  // 3. 클라이언트 마운트 시 기본 캐시 로드
+  useEffect(() => {
+    const stored = getStoredData();
+    const sortedStored: MyLinkData = {
+      ...stored,
+      links: sortByCreatedAtDesc(stored.links || []),
+    };
+    setData(sortedStored);
+    setIsLoaded(true);
+  }, []);
+
+  // 4. 단축키(Ctrl+Shift+A / Cmd+Shift+A) 리스너로 히든 관리자 모달 호출
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "a") {
@@ -151,13 +206,47 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // 토스트 메시지 헬퍼
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-    }, 2500);
+  // Google 소셜 로그인 핸들러
+  const handleGoogleLogin = async () => {
+    try {
+      setIsAuthActionLoading(true);
+      triggerToast("Google 로그인 창을 여는 중...");
+      const { user, profile } = await loginWithGoogle();
+      setCurrentUser(user);
+      setUserProfile(profile);
+      const loginDisplayName = profile.name || (user.email ? user.email.split("@")[0] : user.displayName) || "사용자";
+      triggerToast(`${loginDisplayName}님 환영합니다! 🎉`);
+    } catch (error: unknown) {
+      console.error("Google 로그인 실패:", error);
+      const err = error as { code?: string; message?: string };
+      if (err.code === "auth/popup-closed-by-user") {
+        triggerToast("로그인 창이 닫혔습니다.");
+      } else if (err.code === "auth/cancelled-popup-request") {
+        // 중복 팝업 취소는 무시
+      } else {
+        triggerToast("Google 로그인에 실패했습니다. 다시 시도해주세요.");
+      }
+    } finally {
+      setIsAuthActionLoading(false);
+    }
+  };
+
+  // Google 로그아웃 핸들러
+  const handleGoogleLogout = async () => {
+    try {
+      setIsAuthActionLoading(true);
+      await logoutUser();
+      setCurrentUser(null);
+      setUserProfile(null);
+      // 로그아웃 시 캐시된 링크 초기화
+      setData(INITIAL_DATA);
+      triggerToast("로그아웃되었습니다.");
+    } catch (error) {
+      console.error("로그아웃 실패:", error);
+      triggerToast("로그아웃에 실패했습니다.");
+    } finally {
+      setIsAuthActionLoading(false);
+    }
   };
 
   // 링크 공유하기 (URL 복사)
@@ -174,12 +263,16 @@ export default function HomePage() {
 
   // 수동 새로고침 핸들러
   const handleManualRefresh = async () => {
+    if (!currentUser) {
+      triggerToast("로그인 후 실시간 링크를 새로고침할 수 있습니다.");
+      return;
+    }
     triggerToast("Firestore에서 최신 링크 목록을 불러오는 중...");
-    await fetchLinksFromFirestore(false);
+    await fetchLinksFromFirestore(false, currentUser.uid);
     triggerToast("최신 링크 목록을 불러왔습니다!");
   };
 
-  // 링크 카드 클릭 시 클릭 수 증가 처리 (로컬 + Firebase Firestore)
+  // 링크 카드 클릭 시 클릭 수 증가 처리 (users/{user.uid}/links/{id})
   const handleLinkClick = (clickedLink: LinkItem) => {
     const updatedLinks = incrementLinkClick(clickedLink.id);
     setData((prev) => ({
@@ -191,23 +284,29 @@ export default function HomePage() {
       },
     }));
 
-    // Firebase Firestore 클릭 수 비동기 동기화 (users/anonymous/links/{id})
-    incrementFirebaseLinkClick(clickedLink.id);
+    // Firebase Firestore 클릭 수 비동기 동기화
+    incrementFirebaseLinkClick(activeUserId, clickedLink.id);
   };
 
-  // 새 링크 추가 핸들러 (Firebase Firestore users/anonymous/links 경로에 저장)
+  // 새 링크 추가 핸들러 (users/{user.uid}/links 에 저장)
   const handleAddLink = async (
     newLinkInput: Omit<LinkItem, "id" | "clickCount" | "createdAt" | "updatedAt" | "order">
   ) => {
+    if (!currentUser) {
+      triggerToast("Google 로그인 후 새 링크를 추가할 수 있습니다.");
+      handleGoogleLogin();
+      return;
+    }
+
     setIsAddingLink(true);
     setAddingLinkTitle(newLinkInput.title.trim());
     triggerToast(`"${newLinkInput.title.trim()}" 링크를 등록하는 중입니다...`);
 
     try {
-      // 1. Firebase Firestore (users/anonymous/links)에 저장
-      const newLink = await addFirebaseLink(newLinkInput);
+      // 1. Firebase Firestore (users/{user.uid}/links)에 저장
+      const newLink = await addFirebaseLink(currentUser.uid, newLinkInput);
 
-      // 2. React 상태 업데이트 (createdAt 최신순 정렬) 및 로컬 스토리지 캐시 동기화
+      // 2. React 상태 업데이트 및 로컬 스토리지 캐시 동기화
       setData((prev) => {
         const exists = prev.links.some((l) => l.id === newLink.id);
         const updatedLinks = exists
@@ -221,7 +320,6 @@ export default function HomePage() {
         return updatedData;
       });
 
-      // 3. 추가된 링크 카테고리를 바로 볼 수 있도록 필요 시 카테고리 필터 전환
       if (selectedCategory !== "전체" && selectedCategory !== newLink.category) {
         setSelectedCategory("전체");
       }
@@ -229,7 +327,6 @@ export default function HomePage() {
       triggerToast(`"${newLink.title}" 링크가 등록되었습니다! 🎉`);
     } catch (error) {
       console.error("Firebase 저장 실패:", error);
-      // Firebase 연동 에러 시 로컬 스토리지로 안전하게 폴백
       const { updatedData, newLink } = addStoredLink(newLinkInput);
       setData({
         ...updatedData,
@@ -242,7 +339,98 @@ export default function HomePage() {
     }
   };
 
-  // 활성(노출) 링크만 필터링 (isVisible === true) 및 createdAt 최신순 보장
+  // 링크 수정 핸들러 (users/{user.uid}/links/{id})
+  const handleUpdateLink = async (
+    linkId: string,
+    updates: Partial<Omit<LinkItem, "id" | "clickCount" | "createdAt">>
+  ) => {
+    triggerToast("링크 수정 사항을 저장하는 중입니다...");
+    try {
+      // 1. Firebase Firestore (users/{user.uid}/links/{id}) 업데이트
+      await updateFirebaseLink(activeUserId, linkId, updates);
+
+      // 2. React 상태 업데이트 및 로컬 스토리지 캐시 동기화
+      setData((prev) => {
+        const updatedLinks = prev.links.map((link) =>
+          link.id === linkId
+            ? {
+                ...link,
+                ...updates,
+                updatedAt: new Date().toISOString(),
+              }
+            : link
+        );
+        const updatedData: MyLinkData = {
+          ...prev,
+          links: sortByCreatedAtDesc(updatedLinks),
+        };
+        saveStoredData(updatedData);
+        return updatedData;
+      });
+
+      triggerToast("링크가 성공적으로 수정되었습니다! ✨");
+    } catch (error) {
+      console.error("Firebase 수정 실패:", error);
+      const updatedData = updateStoredLink(linkId, updates);
+      setData({
+        ...updatedData,
+        links: sortByCreatedAtDesc(updatedData.links),
+      });
+      triggerToast("로컬 저장소에 수정 사항이 반영되었습니다.");
+    }
+  };
+
+  // 링크 삭제 모달 열기 핸들러
+  const handleOpenDeleteModal = (link: LinkItem) => {
+    setTargetDeleteLink(link);
+    setIsDeleteModalOpen(true);
+  };
+
+  // 링크 삭제 확정 핸들러 (users/{user.uid}/links/{id})
+  const handleDeleteLink = async (linkId: string) => {
+    const title = targetDeleteLink?.title || "링크";
+    triggerToast(`"${title}" 삭제 중입니다...`);
+    try {
+      // 1. Firebase Firestore (users/{user.uid}/links/{id}) 삭제
+      await deleteFirebaseLink(activeUserId, linkId);
+
+      // 2. React 상태 업데이트 및 로컬 스토리지 캐시 동기화
+      setData((prev) => {
+        const updatedLinks = prev.links.filter((l) => l.id !== linkId);
+        const updatedData: MyLinkData = {
+          ...prev,
+          links: updatedLinks,
+        };
+        saveStoredData(updatedData);
+        return updatedData;
+      });
+
+      triggerToast(`"${title}" 링크가 삭제되었습니다.`);
+    } catch (error) {
+      console.error("Firebase 삭제 실패:", error);
+      const updatedData = deleteStoredLink(linkId);
+      setData({
+        ...updatedData,
+        links: sortByCreatedAtDesc(updatedData.links),
+      });
+      triggerToast(`로컬 저장소에서 "${title}" 링크가 삭제되었습니다.`);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setTargetDeleteLink(null);
+    }
+  };
+
+  // 링크 추가 버튼 클릭 트리거 (비로그인 시 로그인 유도)
+  const handleTriggerAddLink = () => {
+    if (!currentUser) {
+      triggerToast("Google 로그인 후 새 링크를 추가할 수 있습니다.");
+      handleGoogleLogin();
+      return;
+    }
+    setIsAddLinkOpen(true);
+  };
+
+  // 활성(노출) 링크 필터링 (isVisible === true)
   const visibleLinks = useMemo(() => {
     const active = data.links.filter((l) => l.isVisible);
     return sortByCreatedAtDesc(active);
@@ -268,7 +456,7 @@ export default function HomePage() {
     return counts;
   }, [visibleLinks]);
 
-  // 선택된 카테고리에 따른 링크 필터링 (createdAt 최신순 유지)
+  // 선택된 카테고리에 따른 링크 필터링
   const filteredLinks = useMemo(() => {
     if (selectedCategory === "전체") {
       return visibleLinks;
@@ -289,45 +477,59 @@ export default function HomePage() {
             <span className="w-2.5 h-2.5 rounded-full bg-[#4D6E56] animate-pulse" />
           </div>
 
-          {/* 우측 퀵 액션 버튼들 (40x40 히트 에어리어) */}
+          {/* 우측 퀵 액션 영역 */}
           <div className="flex items-center gap-1.5">
-            {/* 새로고침 버튼 (Firestore 최신 데이터 다시 불러오기) */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleManualRefresh}
-              disabled={isLoadingLinks || isAddingLink}
-              className="cursor-pointer shadow-xs border-border/70 hover:bg-card active:scale-95 text-[#4D6E56]"
-              title="Firestore 최신 링크 다시 불러오기"
-              aria-label="최신 링크 불러오기"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${isLoadingLinks ? "animate-spin text-muted-foreground" : ""}`}
-              />
-            </Button>
+            {/* 1. Google 소셜 로그인 / 사용자 정보 & 로그아웃 버튼 */}
+            <GoogleAuthButton
+              user={currentUser}
+              profile={userProfile}
+              isLoading={isAuthLoading || isAuthActionLoading}
+              onLogin={handleGoogleLogin}
+              onLogout={handleGoogleLogout}
+            />
 
-            {/* 새 링크 추가 퀵 버튼 */}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsAddLinkOpen(true)}
-              disabled={isAddingLink}
-              className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] h-9 px-3 rounded-full text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-60"
-              title="새 링크 추가"
-            >
-              {isAddingLink ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span className="hidden sm:inline">등록 중...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span className="hidden sm:inline">링크 추가</span>
-                </>
-              )}
-            </Button>
+            {/* 새로고침 버튼 (로그인 사용자 전용) */}
+            {currentUser && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleManualRefresh}
+                disabled={isLoadingLinks || isAddingLink}
+                className="cursor-pointer shadow-xs border-border/70 hover:bg-card active:scale-95 text-[#4D6E56]"
+                title="Firestore 최신 링크 다시 불러오기"
+                aria-label="최신 링크 불러오기"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isLoadingLinks ? "animate-spin text-muted-foreground" : ""}`}
+                />
+              </Button>
+            )}
 
+            {/* 새 링크 추가 버튼 (로그인 상태일 때 헤더 노출) */}
+            {currentUser && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleTriggerAddLink}
+                disabled={isAddingLink}
+                className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] h-9 px-3 rounded-full text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-60"
+                title="새 링크 추가"
+              >
+                {isAddingLink ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span className="hidden sm:inline">등록 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span className="hidden sm:inline">링크 추가</span>
+                  </>
+                )}
+              </Button>
+            )}
+
+            {/* 링크 공유 버튼 */}
             <Button
               variant="outline"
               size="icon"
@@ -342,17 +544,6 @@ export default function HomePage() {
                 <Share2 className="w-4 h-4" />
               )}
             </Button>
-
-            {data.profile.email && (
-              <a
-                href={`mailto:${data.profile.email}`}
-                className="inline-flex shrink-0 items-center justify-center w-10 h-10 rounded-full border border-border/70 bg-card hover:bg-card/80 text-foreground transition-all active:scale-95 shadow-xs"
-                title="이메일 보내기"
-                aria-label="이메일 문의하기"
-              >
-                <Mail className="w-4 h-4" />
-              </a>
-            )}
           </div>
         </div>
 
@@ -366,111 +557,148 @@ export default function HomePage() {
 
       {/* 메인 뷰포트 컨테이너 (모바일 중심 max-w-[540px]) */}
       <main className="max-w-[540px] mx-auto px-4 py-5 space-y-5">
-        {/* 1. 프로필 헤더 카드 */}
-        <ProfileHeader
-          profile={data.profile}
-          onSecretTrigger={() => setIsAdminModalOpen(true)}
-        />
-
-        {/* 2. 카테고리 탭 필터 */}
-        <section aria-label="링크 카테고리 필터">
-          <CategoryTabs
-            categories={categories}
-            activeCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            counts={categoryCounts}
-          />
-        </section>
-
-        {/* 3. 링크 목록 섹션 */}
-        <section className="space-y-3" aria-label="링크 카드 목록">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-base sm:text-lg font-bold text-[#1E3024] dark:text-[#F4FBF4] flex items-center gap-1.5">
-              <span>{selectedCategory}</span>
-              <span className="text-xs font-normal text-muted-foreground">
-                ({filteredLinks.length})
-              </span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#4D6E56] bg-[#4D6E56]/10 px-2 py-0.5 rounded-full border border-[#4D6E56]/20">
-                <Sparkles className="w-2.5 h-2.5" />
-                <span>최신순</span>
-              </span>
-            </h2>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAddLinkOpen(true)}
-              disabled={isAddingLink}
-              className="h-8 px-2.5 text-xs font-bold text-[#4D6E56] border-[#4D6E56]/40 hover:bg-[#4D6E56] hover:text-[#F4FBF4] rounded-lg transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>새 링크 등록</span>
-            </Button>
+        {/* 로그인 상태별 조건부 화면 분기 */}
+        {isAuthLoading ? (
+          /* 인증 확인 중 로딩 화면 */
+          <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm space-y-3">
+            <Loader2 className="w-6 h-6 text-[#4D6E56] animate-spin mx-auto" />
+            <p className="text-xs">인증 상태를 확인하고 있습니다...</p>
           </div>
+        ) : !currentUser ? (
+          /* 비로그인 상태: 1. 서비스 안내 -> 2. 프로필 -> 3. 역량 요약 순서 */
+          <>
+            {/* 1. Mylink 서비스 안내 칸 */}
+            <UnauthenticatedHero
+              onLogin={handleGoogleLogin}
+              isLoading={isAuthActionLoading}
+            />
 
-          {/* 새 링크 등록/갱신 중일 때 최상단에 뜨는 실시간 로딩 카드 */}
-          {isAddingLink && (
-            <div className="p-4 sm:p-5 rounded-[20px] bg-card border-2 border-dashed border-[#4D6E56]/50 shadow-xs animate-pulse flex items-start gap-3.5 transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-[#4D6E56]/15 text-[#4D6E56] flex items-center justify-center shrink-0">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
-              <div className="flex-1 min-w-0 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-[#4D6E56] bg-[#4D6E56]/15 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                    <span>새 링크 등록 및 갱신 중...</span>
+            {/* 2. 프로필 헤더 카드 (사용자 이름 & 아바타 위 말풍선) */}
+            <ProfileHeader
+              profile={data.profile}
+              userProfile={userProfile}
+              isLoggedIn={false}
+              onSecretTrigger={() => setIsAdminModalOpen(true)}
+            />
+
+            {/* 3. 프로필 스킬 & 역량 요약 카드 */}
+            <SkillsCard />
+          </>
+        ) : (
+          /* 로그인 상태: 1. 프로필 -> 2. 카테고리/링크 목록 -> 3. 역량 요약 순서 */
+          <>
+            {/* 1. 프로필 헤더 카드 (로그인 시 구글 유저 정보 연동) */}
+            <ProfileHeader
+              profile={data.profile}
+              userProfile={userProfile}
+              isLoggedIn={true}
+              onSecretTrigger={() => setIsAdminModalOpen(true)}
+            />
+
+            {/* 2. 카테고리 탭 필터 */}
+            <section aria-label="링크 카테고리 필터">
+              <CategoryTabs
+                categories={categories}
+                activeCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                counts={categoryCounts}
+              />
+            </section>
+
+            {/* 링크 목록 섹션 */}
+            <section className="space-y-3" aria-label="링크 카드 목록">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-base sm:text-lg font-bold text-[#1E3024] dark:text-[#F4FBF4] flex items-center gap-1.5">
+                  <span>{selectedCategory}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    ({filteredLinks.length})
                   </span>
-                </div>
-                <h3 className="text-base font-bold text-foreground truncate">
-                  {addingLinkTitle ? `"${addingLinkTitle}" 등록 중...` : "새 링크 등록 중..."}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Firestore에 링크를 저장하고 최신순 목록을 실시간으로 갱신하고 있습니다.
-                </p>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#4D6E56] bg-[#4D6E56]/10 px-2 py-0.5 rounded-full border border-[#4D6E56]/20">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>최신순</span>
+                  </span>
+                </h2>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTriggerAddLink}
+                  disabled={isAddingLink}
+                  className="h-8 px-2.5 text-xs font-bold text-[#4D6E56] border-[#4D6E56]/40 hover:bg-[#4D6E56] hover:text-[#F4FBF4] rounded-lg transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>새 링크 등록</span>
+                </Button>
               </div>
-            </div>
-          )}
 
-          {isLoadingLinks && filteredLinks.length === 0 ? (
-            <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm space-y-3">
-              <Loader2 className="w-6 h-6 text-[#4D6E56] animate-spin mx-auto" />
-              <p className="text-xs">Firestore에서 링크를 불러오는 중입니다...</p>
-            </div>
-          ) : filteredLinks.length === 0 && !isAddingLink ? (
-            <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm space-y-3">
-              <p>등록된 링크가 없습니다.</p>
-              <Button
-                type="button"
-                onClick={() => setIsAddLinkOpen(true)}
-                className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-xl text-xs font-bold cursor-pointer shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
-                첫 번째 링크 추가하기
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredLinks.map((link) => (
-                <LinkCard
-                  key={link.id}
-                  link={link}
-                  onLinkClick={handleLinkClick}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+              {/* 새 링크 등록/갱신 중일 때 실시간 로딩 카드 */}
+              {isAddingLink && (
+                <div className="p-4 sm:p-5 rounded-[20px] bg-card border-2 border-dashed border-[#4D6E56]/50 shadow-xs animate-pulse flex items-start gap-3.5 transition-all">
+                  <div className="w-12 h-12 rounded-2xl bg-[#4D6E56]/15 text-[#4D6E56] flex items-center justify-center shrink-0">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-[#4D6E56] bg-[#4D6E56]/15 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                        <span>새 링크 등록 및 갱신 중...</span>
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-foreground truncate">
+                      {addingLinkTitle ? `"${addingLinkTitle}" 등록 중...` : "새 링크 등록 중..."}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Firestore(users/{currentUser.uid}/links)에 저장하고 있습니다.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-        {/* 4. 프로필 스킬 & 역량 요약 카드 */}
-        <SkillsCard />
+              {isLoadingLinks && filteredLinks.length === 0 ? (
+                <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm space-y-3">
+                  <Loader2 className="w-6 h-6 text-[#4D6E56] animate-spin mx-auto" />
+                  <p className="text-xs">나만의 링크를 불러오는 중입니다...</p>
+                </div>
+              ) : filteredLinks.length === 0 && !isAddingLink ? (
+                <div className="bg-card rounded-2xl p-8 text-center border border-border/80 text-muted-foreground text-sm space-y-3">
+                  <p>등록된 링크가 아직 없습니다.</p>
+                  <Button
+                    type="button"
+                    onClick={handleTriggerAddLink}
+                    className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
+                    첫 번째 링크 추가하기
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredLinks.map((link) => (
+                    <LinkCard
+                      key={link.id}
+                      link={link}
+                      onLinkClick={handleLinkClick}
+                      onUpdateLink={handleUpdateLink}
+                      onDeleteClick={handleOpenDeleteModal}
+                      existingCategories={categories}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
 
-        {/* 5. 보안 푸터 (관리자 버튼 완전 은닉) */}
+            {/* 3. 프로필 스킬 & 역량 요약 카드 */}
+            <SkillsCard />
+          </>
+        )}
+
+        {/* 4. 보안 푸터 */}
         <footer className="text-center text-xs text-muted-foreground pt-4 pb-4 space-y-1">
           <p className="font-semibold text-[#1E3024] dark:text-[#F4FBF4]">
-            © 2026 {data.profile.name} • MyLink
+            © 2026 {currentUser ? (userProfile?.email?.split("@")[0] || userProfile?.name || "사용자") : data.profile.name} • MyLink
           </p>
           <p className="text-[11px] opacity-75">
-            Designed for Developers, Creators & GIS Researchers
+            Designed for Developers & Creators
           </p>
         </footer>
       </main>
@@ -479,10 +707,10 @@ export default function HomePage() {
       <aside aria-label="새 링크 추가 플로팅 버튼" className="fixed bottom-6 right-6 z-40 sm:bottom-8 sm:right-8">
         <button
           type="button"
-          onClick={() => setIsAddLinkOpen(true)}
+          onClick={handleTriggerAddLink}
           disabled={isAddingLink}
           className="flex items-center gap-2 px-4 py-3 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-full shadow-gs-float transition-all duration-200 active:scale-95 cursor-pointer font-bold text-xs sm:text-sm hover:-translate-y-0.5 border border-[#F4FBF4]/25 disabled:opacity-60 disabled:pointer-events-none"
-          title="새 링크 추가하기"
+          title={currentUser ? "새 링크 추가하기" : "로그인 후 링크 추가"}
           aria-label="새 링크 추가하기"
         >
           {isAddingLink ? (
@@ -493,7 +721,7 @@ export default function HomePage() {
           ) : (
             <>
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>링크 추가</span>
+              <span>{currentUser ? "링크 추가" : "로그인 후 추가"}</span>
             </>
           )}
         </button>
@@ -507,11 +735,22 @@ export default function HomePage() {
         existingCategories={categories}
       />
 
+      {/* 링크 삭제 확인 모달 */}
+      <DeleteLinkModal
+        isOpen={isDeleteModalOpen}
+        link={targetDeleteLink}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setTargetDeleteLink(null);
+        }}
+        onConfirmDelete={handleDeleteLink}
+      />
+
       {/* 시크릿 관리자 인증 모달 */}
       <AdminModal
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
-        onOpenAddLink={() => setIsAddLinkOpen(true)}
+        onOpenAddLink={handleTriggerAddLink}
       />
 
       {/* 토스트 알림 메시지 */}
@@ -519,3 +758,4 @@ export default function HomePage() {
     </div>
   );
 }
+

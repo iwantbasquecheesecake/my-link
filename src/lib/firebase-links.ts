@@ -15,7 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { LinkItem } from "@/types/mylink";
 
-// Firestore 링크 저장 경로: users/anonymous/links
+// Firestore 링크 기본 저장 경로: users/{userId}/links
 export const FIREBASE_LINKS_COLLECTION = "users/anonymous/links";
 
 /**
@@ -98,21 +98,22 @@ function mapDocToLinkItem(id: string, data: DocumentData): LinkItem {
 }
 
 /**
- * Firestore 컬렉션 참조 반환 (users/anonymous/links)
+ * Firestore 컬렉션 참조 반환 (users/{userId}/links)
  */
-export function getLinksCollectionRef() {
-  return collection(db, "users", "anonymous", "links");
+export function getLinksCollectionRef(userId: string = "anonymous") {
+  return collection(db, "users", userId, "links");
 }
 
 /**
- * Firebase Firestore (users/anonymous/links)에 새 링크 추가
+ * Firebase Firestore (users/{userId}/links)에 새 링크 추가
  */
 export async function addFirebaseLink(
+  userId: string,
   newLinkInput: Omit<LinkItem, "id" | "clickCount" | "createdAt" | "updatedAt" | "order"> & {
     order?: number;
   }
 ): Promise<LinkItem> {
-  const collectionRef = getLinksCollectionRef();
+  const collectionRef = getLinksCollectionRef(userId);
   const now = new Date().toISOString();
   const order = newLinkInput.order ?? 1;
 
@@ -157,11 +158,11 @@ export async function addFirebaseLink(
 }
 
 /**
- * Firebase Firestore (users/anonymous/links)에서 모든 링크 목록 가져오기
+ * Firebase Firestore (users/{userId}/links)에서 모든 링크 목록 가져오기
  * createdAt 기준 최신순(내림차순) 정렬
  */
-export async function getFirebaseLinks(): Promise<LinkItem[]> {
-  const collectionRef = getLinksCollectionRef();
+export async function getFirebaseLinks(userId: string = "anonymous"): Promise<LinkItem[]> {
+  const collectionRef = getLinksCollectionRef(userId);
   try {
     // 1. Firestore orderBy 쿼리 시도 (createdAt 기준 내림차순 최신순)
     const q = query(collectionRef, orderBy("createdAt", "desc"));
@@ -191,14 +192,15 @@ export async function getFirebaseLinks(): Promise<LinkItem[]> {
 }
 
 /**
- * Firebase Firestore (users/anonymous/links) 실시간 구독 (onSnapshot)
+ * Firebase Firestore (users/{userId}/links) 실시간 구독 (onSnapshot)
  * createdAt 기준 최신순(내림차순) 정렬
  */
 export function subscribeToFirebaseLinks(
+  userId: string = "anonymous",
   onUpdate: (links: LinkItem[]) => void,
   onError?: (error: Error) => void
 ): () => void {
-  const collectionRef = getLinksCollectionRef();
+  const collectionRef = getLinksCollectionRef(userId);
   let activeUnsubscribe: (() => void) | null = null;
   let hasFallenBack = false;
 
@@ -255,11 +257,14 @@ export function subscribeToFirebaseLinks(
 }
 
 /**
- * Firebase Firestore 링크 클릭 수 증가 (users/anonymous/links/{id})
+ * Firebase Firestore 링크 클릭 수 증가 (users/{userId}/links/{linkId})
  */
-export async function incrementFirebaseLinkClick(linkId: string): Promise<void> {
+export async function incrementFirebaseLinkClick(
+  userId: string = "anonymous",
+  linkId: string
+): Promise<void> {
   try {
-    const docRef = doc(db, "users", "anonymous", "links", linkId);
+    const docRef = doc(db, "users", userId, "links", linkId);
     await updateDoc(docRef, {
       clickCount: increment(1),
       updatedAt: new Date().toISOString(),
@@ -270,9 +275,41 @@ export async function incrementFirebaseLinkClick(linkId: string): Promise<void> 
 }
 
 /**
- * Firebase Firestore 링크 삭제 (users/anonymous/links/{id})
+ * Firebase Firestore 링크 수정 (users/{userId}/links/{linkId})
  */
-export async function deleteFirebaseLink(linkId: string): Promise<void> {
-  const docRef = doc(db, "users", "anonymous", "links", linkId);
+export async function updateFirebaseLink(
+  userId: string = "anonymous",
+  linkId: string,
+  updates: Partial<Omit<LinkItem, "id" | "clickCount" | "createdAt">>
+): Promise<void> {
+  const docRef = doc(db, "users", userId, "links", linkId);
+  const now = new Date().toISOString();
+
+  const payload: Record<string, unknown> = {
+    updatedAt: now,
+  };
+
+  if (updates.title !== undefined) payload.title = updates.title.trim();
+  if (updates.subtitle !== undefined) payload.subtitle = updates.subtitle.trim();
+  if (updates.url !== undefined) payload.url = updates.url.trim();
+  if (updates.category !== undefined) payload.category = updates.category.trim();
+  if (updates.iconName !== undefined) payload.iconName = updates.iconName;
+  if (updates.badge !== undefined) payload.badge = updates.badge.trim() || null;
+  if (updates.badgeBgColor !== undefined) payload.badgeBgColor = updates.badgeBgColor;
+  if (updates.badgeTextColor !== undefined) payload.badgeTextColor = updates.badgeTextColor;
+  if (updates.isVisible !== undefined) payload.isVisible = updates.isVisible;
+  if (updates.order !== undefined) payload.order = updates.order;
+
+  await updateDoc(docRef, payload);
+}
+
+/**
+ * Firebase Firestore 링크 삭제 (users/{userId}/links/{linkId})
+ */
+export async function deleteFirebaseLink(
+  userId: string = "anonymous",
+  linkId: string
+): Promise<void> {
+  const docRef = doc(db, "users", userId, "links", linkId);
   await deleteDoc(docRef);
 }

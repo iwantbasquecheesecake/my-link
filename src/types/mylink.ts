@@ -1,7 +1,8 @@
 export interface ProfileConfig {
   name: string;
-  role: string;         // 소속 및 신분 (예: "OO대학교 공간정보공학과 학부생")
-  statusBadge: string;  // 현재 상태 뱃지 (예: "학부 3학년 재학 중")
+  englishName?: string; // 영문 성명 (예: "Gildong Hong")
+  role: string;         // 소속 및 신분 (예: "웹 개발자 & 크리에이터")
+  statusBadge: string;  // 현재 상태 뱃지 (예: "온라인", "프로젝트 진행 중")
   bio: string;          // 자기소개
   avatarUrl: string;    // 프로필 이미지 URL 또는 Base64
   location?: string;    // 활동 지역 또는 캠퍼스

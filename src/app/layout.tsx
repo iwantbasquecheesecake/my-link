@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "김나린 | 마이링크 (MyLink)",
-  description: "공간 데이터 시각화와 모던 웹 프론트엔드 개발자 김나린의 링크트리 포트폴리오",
+  title: "사용자 이름 | 마이링크 (MyLink)",
+  description: "바이브코딩을 탐구하는 초보 개발자 OOO의 마이페이지 (MyLink)",
 };
 
 export default function RootLayout({
