@@ -407,30 +407,6 @@ export default function HomePage() {
               </Button>
             )}
 
-            {/* 새 링크 추가 버튼 (로그인 상태일 때 헤더 노출) */}
-            {currentUser && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleTriggerAddLink}
-                disabled={isAddingLink}
-                className="bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] h-9 px-3 rounded-full text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-60"
-                title="새 링크 추가"
-              >
-                {isAddingLink ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span className="hidden sm:inline">등록 중...</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span className="hidden sm:inline">링크 추가</span>
-                  </>
-                )}
-              </Button>
-            )}
-
             {/* 링크 공유 버튼 */}
             <Button
               variant="outline"
@@ -606,30 +582,6 @@ export default function HomePage() {
           </p>
         </footer>
       </main>
-
-      {/* 우측 하단 플로팅 링크 추가 버튼 (FAB) */}
-      <aside aria-label="새 링크 추가 플로팅 버튼" className="fixed bottom-6 right-6 z-40 sm:bottom-8 sm:right-8">
-        <button
-          type="button"
-          onClick={handleTriggerAddLink}
-          disabled={isAddingLink}
-          className="flex items-center gap-2 px-4 py-3 bg-[#4D6E56] hover:bg-[#3D5744] text-[#F4FBF4] rounded-full shadow-gs-float transition-all duration-200 active:scale-95 cursor-pointer font-bold text-xs sm:text-sm hover:-translate-y-0.5 border border-[#F4FBF4]/25 disabled:opacity-60 disabled:pointer-events-none"
-          title={currentUser ? "새 링크 추가하기" : "로그인 후 링크 추가"}
-          aria-label="새 링크 추가하기"
-        >
-          {isAddingLink ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>등록 중...</span>
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>{currentUser ? "링크 추가" : "로그인 후 추가"}</span>
-            </>
-          )}
-        </button>
-      </aside>
 
       {/* 새 링크 추가 다이얼로그 */}
       <AddLinkDialog
