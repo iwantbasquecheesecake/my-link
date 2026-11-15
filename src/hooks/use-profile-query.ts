@@ -70,7 +70,7 @@ export function useUpdateProfileDataMutation(uid?: string | null) {
 
   return useMutation({
     mutationFn: async (
-      updates: Partial<Pick<UserProfile, "bio" | "photoURL" | "name" | "role" | "statusBadge">>
+      updates: Partial<Pick<UserProfile, "bio" | "photoURL" | "name" | "role">>
     ) => {
       if (!uid) throw new Error("로그인이 필요합니다.");
       await updateUserProfileData(uid, updates);

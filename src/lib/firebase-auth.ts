@@ -22,13 +22,12 @@ import { auth, db } from "@/lib/firebase";
 
 export interface UserProfile {
   uid: string;
-  displayName: string;  // 고유 식별자 / URL 슬러그 (가입 시 이메일 앞부분으로 자동 할당, 변경 불가)
+  displayName: string;  // 고유 식별자 / URL 슬러그 (가입 시 이메일 앞부분으로 자동 할당)
   username: string;     // 사용자 변경 가능한 별명 (닉네임)
   name?: string;        // 기존 호환성 유지 필드 (username과 동일)
   email: string;
   photoURL?: string;
-  role?: string;
-  statusBadge?: string;
+  role?: string;        // 직업 / 역할 소개
   bio?: string;
   lastLoginAt: string;
   createdAt?: string;
@@ -113,7 +112,6 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
       // 구글 계정 프로필 사진으로 항상 통일 및 최신 동기화
       photoURL: user.photoURL || data.photoURL || "",
       role: subData?.role || data.role || "MyLink 크리에이터",
-      statusBadge: subData?.statusBadge || data.statusBadge || "온라인",
       bio: subData?.bio || data.bio || "환영합니다! 나만의 링크를 자유롭게 공유하고 관리해보세요.",
       lastLoginAt: now,
       createdAt: data.createdAt || now,
@@ -173,7 +171,6 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
       email: user.email || "",
       photoURL: user.photoURL || "",
       role: "MyLink 크리에이터",
-      statusBadge: "온라인",
       bio: "환영합니다! 나만의 링크를 자유롭게 공유하고 관리해보세요.",
       lastLoginAt: now,
       createdAt: now,
@@ -246,7 +243,6 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
       email: mainData.email || "",
       photoURL: mainData.photoURL || "",
       role: subData?.role || mainData.role || "MyLink 크리에이터",
-      statusBadge: subData?.statusBadge || mainData.statusBadge || "온라인",
       bio: subData?.bio || mainData.bio || "환영합니다! 나만의 링크를 자유롭게 공유하고 관리해보세요.",
       lastLoginAt: mainData.lastLoginAt || new Date().toISOString(),
       createdAt: mainData.createdAt,
@@ -400,7 +396,7 @@ export async function saveUserProfile(
  */
 export async function updateUserProfileData(
   uid: string,
-  updates: Partial<Pick<UserProfile, "bio" | "photoURL" | "name" | "role" | "statusBadge">>
+  updates: Partial<Pick<UserProfile, "bio" | "photoURL" | "name" | "role">>
 ): Promise<void> {
   const userDocRef = doc(db, "users", uid);
   await setDoc(userDocRef, updates, { merge: true });

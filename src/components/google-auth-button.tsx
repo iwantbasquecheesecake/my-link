@@ -42,7 +42,7 @@ export function GoogleAuthButton({
       <div className="flex items-center gap-1 sm:gap-2">
         {/* 유저 프로필 칩 */}
         <div
-          className="flex items-center gap-1.5 py-1 px-2 rounded-full bg-card border border-border/70 shadow-xs text-xs font-semibold text-foreground max-w-[140px] sm:max-w-[180px] truncate"
+          className="flex items-center gap-1.5 py-1 px-2 rounded-full bg-card border border-border/70 shadow-xs text-xs font-semibold text-foreground max-w-[105px] sm:max-w-[140px] truncate"
           title={`${displayName} (${profile?.email || user.email})`}
         >
           <Avatar className="w-6 h-6 border border-border/80 shrink-0">

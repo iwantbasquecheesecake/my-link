@@ -351,16 +351,16 @@ export default function HomePage() {
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-[#4D6E56] selection:text-[#F4FBF4] transition-colors pb-12">
       {/* 상단 네비게이션 헤더 */}
       <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-md border-b border-border/80">
-        <div className="max-w-[540px] mx-auto px-4 h-14 flex items-center justify-between">
-          {/* 브랜드 워드마크 */}
-          <div className="flex items-center select-none">
+        <div className="max-w-[580px] mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          {/* 브랜드 워드마크: 우측 버튼들과 충분한 여백 확보 */}
+          <div className="flex items-center shrink-0 select-none mr-2 sm:mr-4">
             <span className="font-extrabold text-xl tracking-tight text-[#1E3024] dark:text-white">
               MyLink
             </span>
           </div>
 
           {/* 우측 퀵 액션 영역 */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
             {/* 1. Google 소셜 로그인 / 사용자 정보 & 로그아웃 버튼 */}
             <GoogleAuthButton
               user={currentUser}
